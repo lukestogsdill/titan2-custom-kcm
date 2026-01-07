@@ -4,7 +4,6 @@
 
 ### Base Layer
 ```
-Special: APP_SWITCH → HOME
 Row 1: <empty>
 Row 2: [q, w, e, r, t, y, u, i, o, p]
 Row 3: [a, s, d, f, g, h, j, k, l, <empty>]
@@ -24,7 +23,7 @@ Row 4: [!, 7, 8, 9, <empty>, ., ., ?, <empty>]
 Row 1: <empty>
 Row 2: [ESC, ~, $, &, {, }, [, ], \, ;]
 Row 3: [TAB, %, ^, <, >, ←, ↓, ↑, →, <empty>]
-Row 4: <empty>
+Row 4: [=, <empty>]
 ```
 
 ## Installation
@@ -38,6 +37,3 @@ Row 4: <empty>
 7. Select **Other** for KCM
 8. Apply your exkeymo keyboard
 9. Done
-
-## TODO/issues
-- APP_SWITCH → HOME doesn't work
