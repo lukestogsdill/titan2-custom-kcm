@@ -4,12 +4,11 @@
 
 ### Base Layer
 ```
+Special: APP_SWITCH → HOME
 Row 1: <empty>
 Row 2: [q, w, e, r, t, y, u, i, o, p]
 Row 3: [a, s, d, f, g, h, j, k, l, <empty>]
-Row 4: [z, x, c, v, b, n, m, <empty>, <empty>, <empty>]
-
-Special: APP_SWITCH → HOME
+Row 4: [z, x, c, v, <empty>, b, n, m, <empty>]
 ```
 
 ### Alt Layer
