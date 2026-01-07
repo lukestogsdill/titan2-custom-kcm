@@ -1,39 +1,52 @@
 # Titan 2 Custom Keyboard Layout
 
+Optimized physical keyboard layout for the Titan 2. Features a custom Sym layer for navigation, additional symbols, and system keys, allowing you to disable the virtual keyboard entirely without needing root access.
+
 ## Layout Matrix
 
-### Base Layer
-```
-Row 1: <empty>
-Row 2: [q, w, e, r, t, y, u, i, o, p]
-Row 3: [a, s, d, f, g, h, j, k, l, <empty>]
-Row 4: [z, x, c, v, <empty>, b, n, m, <empty>]
-```
+### Row 1 (System/Top Keys)
 
-### Alt Layer
-```
-Row 1: <empty>
-Row 2: [0, 1, 2, 3, (, ), -, _, /, :]
-Row 3: [@, 4, 5, 6, *, #, +, ", ', <empty>]
-Row 4: [!, 7, 8, 9, <empty>, ., ., ?, <empty>]
-```
+> **Note:** Editing these keys requires root to modify the `.kl` file. Otherwise, use **Settings → Shortcut keys** for basic remapping.
 
-### Sym Layer
-```
-Row 1: <empty>
-Row 2: [ESC, ~, $, &, {, }, [, ], \, ;]
-Row 3: [TAB, %, ^, <, >, ←, ↓, ↑, →, <empty>]
-Row 4: [=, <empty>]
-```
+- **Shift, Back, App_Switch, ALT:** Default
+- **Sym:** Set to "Show/Hide on-screen keyboard" (layer modifier)
+- **Fn:** Set to Control via settings
 
-## Installation
+---
 
-1. Go to https://github.com/ris58h/exkeymo-server
-2. Paste your `titan2-custom.kcm` into the web UI
-3. Compile to APK
-4. Download the APK on your Android device
-5. Install the APK
-6. Go to **Settings → Physical Keyboard Settings**
-7. Select **Other** for KCM
-8. Apply your exkeymo keyboard
-9. Done
+### Row 2 (Top Row)
+- **Base:** [q, w, e, r, t, y, u, i, o, p]
+- **Alt:** [0, 1, 2, 3, (, ), -, _, /, :]
+- **Sym:** [ESC, ~, $, &, {, }, [, ], , ;]
+
+### Row 3 (Home Row)
+- **Base:** [a, s, d, f, g, h, j, k, l, Enter]
+- **Alt:** [@, 4, 5, 6, *, #, +, ", ']
+- **Sym:** [TAB, %, ^, <, >, ←, ↓, ↑, →, INSERT]
+
+### Row 4 (Bottom Row)
+- **Base:** [z, x, c, v, Space, b, n, m]
+- **Alt:** [!, 7, 8, 9, ., ,, ?]
+- **Sym:** [=, —, —, —, SEARCH, —, HOME, END]
+
+---
+
+## Installation (No Root Required)
+
+### Choose Your Path
+
+- **Default:** Just install `keyboard.apk` on your device.
+- **Custom:** To modify the layout, follow the exkeymo-server instructions: run the server, visit localhost in your browser, paste your `titan2-custom.kcm`, and compile a new APK.
+
+### Activation
+
+1. Go to **Settings → System → Languages & input → Physical keyboard**
+2. Select your physical keyboard
+3. For the KCM provider, you must select **"Other"**
+4. Choose your installed Exkeymo layout
+
+### Hardware Key Setup
+
+1. Go to **Settings → Shortcut keys**
+2. Set **Fn** to **Control**
+3. In **Physical Keyboard** settings, toggle **"Show virtual keyboard"** to **OFF**

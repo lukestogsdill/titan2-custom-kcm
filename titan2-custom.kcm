@@ -193,6 +193,7 @@ key N {
     base:                               'n'
     shift, capslock:                    'N'
     alt:                                ','
+    sym:                                fallback MOVE_HOME
 }
 
 key M {
@@ -200,4 +201,19 @@ key M {
     base:                               'm'
     shift, capslock:                    'M'
     alt:                                '?'
+    sym:                                fallback MOVE_END
+}
+
+key SPACE {
+    label:                              ' '
+    base:                               ' '
+    alt:                                ' '
+    sym:                                fallback SEARCH
+}
+
+key ENTER {
+    label:                              '\n'
+    base:                               '\n'
+    alt:                                '\n'
+    sym:                                fallback INSERT
 }
