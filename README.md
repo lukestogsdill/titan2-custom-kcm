@@ -17,7 +17,7 @@ Special: APP_SWITCH → HOME
 Row 1: <empty>
 Row 2: [0, 1, 2, 3, (, ), -, _, /, :]
 Row 3: [@, 4, 5, 6, *, #, +, ", ', <empty>]
-Row 4: [!, 7, 8, 9, ., ., ?, <empty>, <empty>, <empty>]
+Row 4: [!, 7, 8, 9, <empty>, ., ., ?, <empty>]
 ```
 
 ### Sym Layer
@@ -41,5 +41,5 @@ Row 4: <empty>
 9. Done
 
 ## TODO/issues
-- APP_SWITCH -> HOME doesn't work
+- APP_SWITCH → HOME doesn't work
 - digital keyboard doesn't fully hide
