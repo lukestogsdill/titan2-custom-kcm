@@ -41,4 +41,3 @@ Row 4: <empty>
 
 ## TODO/issues
 - APP_SWITCH → HOME doesn't work
-- digital keyboard doesn't fully hide
