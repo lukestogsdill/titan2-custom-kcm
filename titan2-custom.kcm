@@ -85,7 +85,7 @@ key A {
     base:                               'a'
     shift, capslock:                    'A'
     alt:                                '@'
-    sym:                                fallback TAB
+    sym:                                replace TAB
 }
 
 key S {
@@ -121,35 +121,40 @@ key G {
 }
 
 key H {
-    label:                              'H'
-    base:                               'h'
-    shift, capslock:                    'H'
-    alt:                                '#'
-    sym:                                fallback DPAD_LEFT
+    label: 'H'
+    base: 'h'
+    shift, capslock: 'H'
+    alt: '#'
+    # Explicitly allow shift to combine with sym for selection
+    sym: replace DPAD_LEFT
+    sym+shift: replace DPAD_LEFT
 }
 
 key J {
-    label:                              'J'
-    base:                               'j'
-    shift, capslock:                    'J'
-    alt:                                '+'
-    sym:                                fallback DPAD_DOWN
+    label: 'J'
+    base: 'j'
+    shift, capslock: 'J'
+    alt: '+'
+    sym: replace DPAD_DOWN
+    sym+shift: replace DPAD_DOWN
 }
 
 key K {
-    label:                              'K'
-    base:                               'k'
-    shift, capslock:                    'K'
-    alt:                                '"'
-    sym:                                fallback DPAD_UP
+    label: 'K'
+    base: 'k'
+    shift, capslock: 'K'
+    alt: '"'
+    sym: replace DPAD_UP
+    sym+shift: replace DPAD_UP
 }
 
 key L {
-    label:                              'L'
-    base:                               'l'
-    shift, capslock:                    'L'
-    alt:                                '\''
-    sym:                                fallback DPAD_RIGHT
+    label: 'L'
+    base: 'l'
+    shift, capslock: 'L'
+    alt: '\''
+    sym: replace DPAD_RIGHT
+    sym+shift: replace DPAD_RIGHT
 }
 
 key Z {
@@ -193,7 +198,7 @@ key N {
     base:                               'n'
     shift, capslock:                    'N'
     alt:                                ','
-    sym:                                fallback MOVE_HOME
+    sym:                                replace MOVE_HOME
 }
 
 key M {
@@ -201,19 +206,19 @@ key M {
     base:                               'm'
     shift, capslock:                    'M'
     alt:                                '?'
-    sym:                                fallback MOVE_END
+    sym:                                replace MOVE_END
 }
 
 key SPACE {
     label:                              ' '
     base:                               ' '
     alt:                                ' '
-    sym:                                fallback SEARCH
+    sym:                                replace SEARCH
 }
 
 key ENTER {
     label:                              '\n'
     base:                               '\n'
     alt:                                '\n'
-    sym:                                fallback INSERT
+    sym:                                replace INSERT
 }
