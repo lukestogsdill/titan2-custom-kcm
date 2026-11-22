@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Titan2 Keys</string>
+    <string name="ime_name">Titan2 Emoji</string>
+    <string name="subtype_en_us">English (US)</string>
+    <string name="layout_name">Titan 2 Custom</string>
+    <string name="super_service_name">Titan2 Super key</string>
+    <string name="super_service_description">Double-tap and hold Sym to use it as a Super (Windows) key, for example in Moonlight. Only keys pressed while Super is held are touched: they are sent to the app through the Titan2 Emoji keyboard. Nothing is logged or stored.</string>
+</resources>

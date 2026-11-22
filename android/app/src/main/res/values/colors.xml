@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="panel_bg">#F2F2F5</color>
+    <color name="panel_text">#1C1C1E</color>
+    <color name="panel_hint">#6E6E73</color>
+    <color name="tab_selected">#DADAE0</color>
+    <color name="cell_selected">#C9D7FF</color>
+    <color name="ic_bg">#2B2F3A</color>
+</resources>

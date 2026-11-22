@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A keycap with a smile, inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#F2F2F7"
+        android:pathData="M40,30 H68 A10,10 0 0 1 78,40 V68 A10,10 0 0 1 68,78 H40 A10,10 0 0 1 30,68 V40 A10,10 0 0 1 40,30 Z" />
+    <path
+        android:fillColor="#2B2F3A"
+        android:pathData="M41.5,48 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0 Z M59.5,48 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0 Z" />
+    <path
+        android:pathData="M43,58 Q54,68 65,58"
+        android:strokeWidth="4"
+        android:strokeColor="#2B2F3A"
+        android:strokeLineCap="round" />
+</vector>

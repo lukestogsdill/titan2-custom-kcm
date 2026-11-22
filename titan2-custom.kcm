@@ -191,6 +191,8 @@ key B {
     base:                               'b'
     shift, capslock:                    'B'
     alt:                                '.'
+    # Toggles the Titan2 Emoji panel (the keyboard listens for this keycode)
+    sym:                                replace PICTSYMBOLS
 }
 
 key N {
