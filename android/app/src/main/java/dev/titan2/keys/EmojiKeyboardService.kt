@@ -6,12 +6,16 @@ import android.view.View
 
 /**
  * An on-screen keyboard that shows nothing (like "No Keyboard") until Sym+B opens the
- * emoji panel. It also gives [SuperKeyService] a way to send keys to the focused app.
+ * emoji panel. It also gives [SuperKeyService] a way to send keys to the focused app,
+ * for the modifier locks and Super.
  */
 class EmojiKeyboardService : InputMethodService() {
 
     companion object {
-        /** Sym+B sends this keycode (see `key B` in titan2-custom.kcm). */
+        /**
+         * Sym+B sends this keycode (see `key B` in titan2-custom.kcm). [SuperKeyService]
+         * normally catches it first; handling it here too keeps Sym+B working without it.
+         */
         const val TOGGLE_KEY = KeyEvent.KEYCODE_PICTSYMBOLS
 
         /** The running keyboard. [SuperKeyService] runs in the same process and uses it. */
@@ -89,7 +93,16 @@ class EmojiKeyboardService : InputMethodService() {
         return true
     }
 
-    private fun togglePanel() = if (panelOpen) closePanel() else openPanel()
+    /** True while the emoji panel is on screen. */
+    val panelShowing: Boolean
+        get() = panelOpen && isInputViewShown
+
+    /** Gives the open panel a key that [SuperKeyService] changed (e.g. Sym lock + H = ←). */
+    fun panelKey(event: KeyEvent): Boolean = panelShowing && panel?.onKey(event) == true
+
+    fun togglePanel() {
+        if (panelOpen) closePanel() else openPanel()
+    }
 
     private fun openPanel() {
         if (currentInputConnection == null) return

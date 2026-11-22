@@ -42,14 +42,14 @@ class SetupActivity : Activity() {
         root.addView(button("3. Switch to Titan2 Emoji") {
             getSystemService(InputMethodManager::class.java).showInputMethodPicker()
         })
-        root.addView(button("4. Turn on Titan2 Super key (Accessibility)") {
+        root.addView(button("4. Turn on Titan2 Key locks & Super (Accessibility)") {
             open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         })
         root.addView(button("Greyed out? App info → ⋮ → Allow restricted settings") {
             open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         })
         root.addView(EditText(this).apply {
-            hint = "Test: Sym+B for emoji, double-tap-hold Sym for Super"
+            hint = "Test: Sym+B emoji · hold Home for Super · double-tap Shift/Alt/Sym to lock"
         })
         log = label("", 12f)
         log.typeface = Typeface.MONOSPACE
@@ -96,7 +96,7 @@ class SetupActivity : Activity() {
         status.text = listOf(
             "Emoji keyboard turned on" to imeOn,
             "Emoji keyboard selected" to imeActive,
-            "Super key service on" to superOn,
+            "Key locks & Super service on" to superOn,
         ).joinToString("\n") { (text, ok) -> (if (ok) "✅ " else "❌ ") + text }
     }
 

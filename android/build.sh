@@ -11,6 +11,14 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# The JDK and SDK tools downloaded below are x86-64 Linux builds (Google ships no
+# ARM ones), so e.g. Termux on the phone can't run them.
+if [[ "$(uname -m)" != x86_64 && ( -z "${JAVA_HOME:-}" || -z "${ANDROID_HOME:-}" ) ]]; then
+  echo "error: this needs an x86-64 Linux PC; Google's Android SDK tools don't run on $(uname -m)." >&2
+  echo "Build on your computer, then copy titan2-keys.apk to the phone (or use --install over adb)." >&2
+  exit 1
+fi
+
 TC="$PWD/.toolchain"
 JDK_URL='https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jdk/hotspot/normal/eclipse'
 CLT_URL='https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip'

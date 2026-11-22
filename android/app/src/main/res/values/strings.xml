@@ -4,6 +4,6 @@
     <string name="ime_name">Titan2 Emoji</string>
     <string name="subtype_en_us">English (US)</string>
     <string name="layout_name">Titan 2 Custom</string>
-    <string name="super_service_name">Titan2 Super key</string>
-    <string name="super_service_description">Double-tap and hold Sym to use it as a Super (Windows) key, for example in Moonlight. Only keys pressed while Super is held are touched: they are sent to the app through the Titan2 Emoji keyboard. Nothing is logged or stored.</string>
+    <string name="super_service_name">Titan2 Key locks &amp; Super</string>
+    <string name="super_service_description">Double-tap Shift, Alt or Sym to lock it, with a badge at the top of the screen. Hold Home to turn a Super (Windows) key on and off, for example for Moonlight; a short press still goes home. Keys a lock or Super changes are sent to the app through the Titan2 Emoji keyboard; all other keys go through untouched. Nothing is logged or stored.</string>
 </resources>

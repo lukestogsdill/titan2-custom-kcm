@@ -33,7 +33,7 @@
                 android:resource="@xml/method" />
         </service>
 
-        <!-- Double-tap-and-hold Sym = Super. -->
+        <!-- Shift/Alt/Sym locks, hold Home = Super, the lock badge. -->
         <service
             android:name=".SuperKeyService"
             android:exported="true"
