@@ -1,68 +1,51 @@
-# Titan 2 Custom Keyboard Layout
+<div align="center">
 
-Optimized physical keyboard layout for the Titan 2. Features a custom Sym layer for navigation, additional symbols, and system keys, allowing you to disable the virtual keyboard entirely without needing root access.
+# Titan2 Keys
 
-The **Titan2 Keys** app (`android/`) adds the parts a layout file can't do:
+**A full custom keyboard for the Unihertz Titan 2.**<br>
+Better layout · emoji panel · controller layer · key locks · Super key · no root
 
-- **Sym + B** toggles an on-screen emoji panel. The rest of the time there's no on-screen keyboard, like "No Keyboard".
-- **Sym + C** turns on a controller layer: keys act as gamepad buttons (for Moonlight). The app lists the buttons and you pick a key for each.
-- **Double-tap Shift, Alt or Sym** locks it (Shift = caps lock). A badge at the top of the screen shows what's locked.
-- **Holding Home** turns **Super** (the Windows key) on and off, e.g. for Hyprland shortcuts through Moonlight.
-- It includes this layout, so ExKeyMo isn't needed anymore.
+### [⬇ Download titan2-keys.apk](https://github.com/lukestogsdill/titan2-custom-kcm/raw/main/titan2-keys.apk)
 
-## Layout Matrix
+<img src="docs/controller.svg" width="640" alt="Titan2 Keys controller layer: the Titan 2 keyboard as a gamepad, with the key bound to each button">
 
-### Row 1 (System/Top Keys)
+<sub>The controller layer: press Sym + C and the keyboard is a gamepad. Every button shows its key.</sub>
 
-> **Note:** Editing these keys requires root to modify the `.kl` file. Otherwise, use **Settings → Shortcut keys** for basic remapping.
-
-- **Back, App_Switch:** Default
-- **Home** (or the key with code 408): Default. Hold = Super on/off (needs the app).
-- **Shift, ALT:** Default. Double-tap = Caps lock / Alt lock (needs the app).
-- **Sym:** Set to "Show/Hide on-screen keyboard" (layer modifier). Double-tap = Sym lock (needs the app).
-- **Fn:** Set to Control via settings
+</div>
 
 ---
 
-### Row 2 (Top Row)
-- **Base:** [q, w, e, r, t, y, u, i, o, p]
-- **Alt:** [0, 1, 2, 3, (, ), -, _, /, :]
-- **Sym:** [ESC, ~, $, &, {, }, [, ], `\`, ;]
+The Titan 2 has a great physical keyboard, but Android keeps treating it like an afterthought: an onscreen keyboard that pops up over everything, symbols you can't reach, no arrows, no Esc. **Titan2 Keys** fixes all of that with one app:
 
-### Row 3 (Home Row)
-- **Base:** [a, s, d, f, g, h, j, k, l, Enter]
-- **Alt:** [@, 4, 5, 6, *, #, +, ", ']
-- **Sym:** [TAB, %, ^, <, >, ←, ↓, ↑, →, INSERT]
+| | |
+| --- | --- |
+| ⌨️ **A layout that makes sense** | Numbers and symbols on **Alt**, arrows, Tab, Esc, Home/End on **Sym**. |
+| 😀 **Emoji panel, Sym + B** | The onscreen keyboard stays out of the way (like "No Keyboard") until you want emoji. Type to search: `fire`, `thumbs up`. |
+| 🎮 **Controller layer, Sym + C** | The keyboard becomes a gamepad for Moonlight game streaming. Rebind every button on a drawn controller that lights up as you press. |
+| 🔒 **Key locks** | Double-tap Shift, Alt or Sym to lock it. A badge in the status bar shows what's on. |
+| ❖ **Super key** | Hold Home to turn on Super (the Windows key) for Hyprland and other desktop shortcuts over Moonlight. |
 
-### Row 4 (Bottom Row)
-- **Base:** [z, x, c, v, Space, b, n, m]
-- **Alt:** [!, 7, 8, 9, ., ,, ?]
-- **Sym:** [=, —, CONTROLLER, —, SEARCH, EMOJI, HOME, END]
+No root, no ExKeyMo, no extra apps. One APK.
 
----
+## Install
 
-## Titan2 Keys app
+1. **[Download titan2-keys.apk](https://github.com/lukestogsdill/titan2-custom-kcm/raw/main/titan2-keys.apk)** on the phone and open it to install (allow installs from your browser if Android asks).
+2. Open **Titan2 Keys**. It walks you through 4 steps with a button for each, and ticks them off as you go:
+   1. **Pick the Titan 2 Custom layout** (Physical keyboard settings). On newer Android the layout is chosen per keyboard app, so pick it again after step 3.
+   2. **Turn on Titan2 Emoji**, the keyboard.
+   3. **Switch to Titan2 Emoji.** It replaces your onscreen keyboard.
+   4. **Turn on Titan2 Key locks & Super** (Accessibility). If it's greyed out ("restricted setting"), tap the link under the step: App info → ⋮ → **Allow restricted settings**. Android does this for every app installed outside the Play Store.
+3. Optional: **Settings → Shortcut keys → Fn → Control** makes Fn a Ctrl key.
 
-### Build
+Updating is the same: download the new APK and open it. Your settings stay.
 
-```sh
-./android/build.sh            # -> titan2-keys.apk in the repo root
-./android/build.sh --install  # same, then installs over adb
-```
+## The layout
 
-Run it on an x86-64 Linux PC, not in Termux on the phone (Google's SDK tools only run on x86-64). The first run downloads a JDK 17, the Android SDK and Gradle into `android/.toolchain/` (no root; delete the folder to remove them). It asks you to accept the Android SDK license once. If you already have `JAVA_HOME` / `ANDROID_HOME` set, it uses those.
+<img src="docs/layout.svg" width="720" alt="Titan 2 Custom keyboard layout: base, Alt and Sym layers">
 
-`--install` needs the phone connected to adb: either a USB cable with USB debugging on, or **Developer options → Wireless debugging → Pair device with pairing code**, then on the PC `android/.toolchain/sdk/platform-tools/adb pair <ip:port>` and `adb connect <ip:port>`. Otherwise just copy `titan2-keys.apk` to the phone and open it.
+Hold **Alt** for the orange characters, **Sym** for the green ones. Sym + B opens the emoji panel, Sym + C turns on the controller.
 
-### Set up on the phone
-
-1. Install `titan2-keys.apk` and open **Titan2 Keys**. It has a button for each step and shows which ones are done.
-2. **Physical keyboard layout:** Settings → System → Languages & input → Physical keyboard → pick **Titan 2 Custom** (the one from Titan2 Keys). On newer Android the layout is chosen per keyboard app, so pick it again after switching to Titan2 Emoji.
-3. **Keyboard:** enable **Titan2 Emoji** and switch to it (it replaces "No Keyboard").
-4. **Locks & Super:** Settings → Accessibility → **Titan2 Key locks & Super** → on. If it's greyed out ("restricted setting"), go to App info → ⋮ → **Allow restricted settings** first. Android does this for every sideloaded accessibility app.
-5. **Controller (optional):** in Moonlight, Settings → Input Settings → turn off **Automatic gamepad presence detection**. Otherwise Moonlight tells the PC there's no gamepad and the PC ignores the buttons.
-
-### Emoji panel (Sym + B)
+## 😀 Emoji panel (Sym + B)
 
 - Tap an emoji to insert it. The panel stays open so you can pick several.
 - Or type to search by name (`fire`, `thumbs up`). **Enter** inserts the highlighted one and closes the panel.
@@ -71,78 +54,88 @@ Run it on an x86-64 Linux PC, not in Termux on the phone (Google's SDK tools onl
 
 In Moonlight, typing goes to the stream, so use touch there.
 
-### Locks (double-tap Shift, Alt or Sym)
+## 🎮 Controller layer (Sym + C)
 
-| Double-tap | Locks         | Affects                                      |
-| ---------- | ------------- | -------------------------------------------- |
-| Shift      | **CAPS**      | Letters only                                 |
-| Alt        | **ALT**       | Keys with an Alt character (numbers, symbols) |
-| Sym        | **SYM**       | The Sym layer (arrows, Tab, symbols, emoji)  |
+**Sym + C** turns it on and off (you'll feel a tick and see **PAD** at the top of the screen). While it's on, the bound keys are gamepad buttons and every other key types as usual.
+
+**Defaults:** WASD is the D-pad, I J K L are Y X A B, Q / E are LB / LT, U / O are RB / RT, Space is A too, Enter is Start, Z is Select, X / M click the sticks.
+
+**Rebind:** Titan2 Keys → **Controller layer**. Tap a button on the controller, press the key you want: any key works, including Shift, Alt, Ctrl, Backspace and the volume keys. **Clear** unbinds a button, **Reset to defaults** brings the defaults back. Press keys on that screen to test: their buttons light up and the controller tilts with the D-pad.
+
+> **Moonlight setup (once):** Settings → Input Settings → turn off **Automatic gamepad presence detection**. Otherwise Moonlight tells the PC there's no gamepad and the buttons get ignored.
+
+- Hold **Sym** for the normal Sym layer (Sym+H/J/K/L are still arrows, Sym+C turns the controller off).
+- Hold **Alt** to type digits, unless you've bound Alt as a button.
+- Home still toggles Super. Back and the other system keys can't be bound.
+- No analog sticks (Android doesn't let an app fake them), so games need to work with the D-pad.
+- Moonlight's own controller shortcuts apply: holding Start toggles its mouse mode, Start+Select+LB+RB ends the stream.
+
+It's made for Moonlight. Android games may or may not accept the buttons.
+
+## 🔒 Key locks (double-tap Shift, Alt or Sym)
+
+| Double-tap | Locks    | Affects                                       |
+| ---------- | -------- | --------------------------------------------- |
+| Shift      | **CAPS** | Letters only                                  |
+| Alt        | **ALT**  | Keys with an Alt character (numbers, symbols) |
+| Sym        | **SYM**  | The Sym layer (arrows, Tab, symbols, emoji)   |
 
 - Tap the same key once to unlock.
-- A colored chip in the middle of the status bar shows each active lock (and SUPER).
+- A colored chip in the middle of the status bar shows each active lock (and SUPER, PAD).
 - A lock only changes keys where its layer has something, so with Alt lock Backspace, Enter and Space stay normal.
 - Holding the other layer's key wins for that press: Alt+key during Sym lock gives the Alt character.
 
-### Super (hold Home)
+## ❖ Super key (hold Home)
 
-**Hold Home** for half a second to turn Super on (you'll feel a tick and see **SUPER**). Every key is then sent as Super + key until you hold Home again. A short press of Home still goes home. A key that sends code 408 (scan code or keycode) works the same way, except a short press of it does whatever it normally does.
+**Hold Home** for half a second to turn Super on (you'll feel a tick and see **SUPER**). Every key is then sent as Super + key until you hold Home again. A short press of Home still goes home. Holding a key that sends code 408 toggles Super too (a short press of it does whatever it normally does).
 
-| With Super on, press       | Sent                   | Omarchy           |
-| -------------------------- | ---------------------- | ----------------- |
-| Enter                      | Super+Return           | Terminal          |
-| Space                      | Super+Space            | Launcher          |
-| W / Q                      | Super+W / Q            | Close window      |
-| Sym+H/J/K/L                | Super+← ↓ ↑ →          | Move focus        |
-| Alt+W, Alt+E, … (1, 2, …)  | Super+1, Super+2       | Workspaces        |
-| Shift+Alt+W                | Super+Shift+1          | Move to workspace |
-| Alt+Space / Alt+Enter      | Super+Alt+Space/Return | Menu / Tmux       |
-| Shift+B, Shift+N, …        | Super+Shift+B, …       | App launchers     |
+| With Super on, press      | Sent                   | Omarchy           |
+| ------------------------- | ---------------------- | ----------------- |
+| Enter                     | Super+Return           | Terminal          |
+| Space                     | Super+Space            | Launcher          |
+| W / Q                     | Super+W / Q            | Close window      |
+| Sym+H/J/K/L               | Super+← ↓ ↑ →          | Move focus        |
+| Alt+W, Alt+E, … (1, 2, …) | Super+1, Super+2       | Workspaces        |
+| Shift+Alt+W               | Super+Shift+1          | Move to workspace |
+| Alt+Space / Alt+Enter     | Super+Alt+Space/Return | Menu / Tmux       |
+| Shift+B, Shift+N, …       | Super+Shift+B, …       | App launchers     |
 
-Rules:
-- The Sym layer works as usual: Sym+H is Super+←, plain H is Super+H.
 - Alt (held or locked) picks a character as usual (Alt+W = 1 → Super+1). Where Alt doesn't change the character (Enter, Space), it's sent as a real Alt.
 - Caps lock is ignored while Super is on. Use Shift for Super+Shift combos.
-- Super is pressed and let go around each key, so it can't get stuck down on the PC if you switch apps with it on.
-- No Super+Alt+letter, since Alt turns letters into digits/symbols.
+- Super is pressed and let go around each key, so it can't get stuck down on the PC.
 
-How it works: Moonlight reads keys before any on-screen keyboard can (`StreamView.onKeyPreIme`), so the accessibility service takes the keys a lock or Super changes. It sends the changed keys through the Titan2 Emoji keyboard, which delivers them straight to the app. That also means Android's own Meta shortcuts don't steal Super+B and the like. Every other key goes through untouched.
+## Troubleshooting
 
-**If something doesn't trigger:** open Titan2 Keys and press the key in the test field. The log shows `service saw <key> down scan=<n>` for every key the service gets. If a key never shows up there, the phone is handling it itself before apps get it. Try changing it under **Settings → Shortcut keys**. A different Super key can be set with `SUPER_KEY_CODE` in `SuperKeyService.kt`.
+Titan2 Keys has a **Test keys** box with a live key log. It shows `service saw <key> down scan=<n>` for every key the service gets, what it sent, and what reached the app.
 
-### Controller (Sym + C)
+- **A key doesn't trigger anything:** if it never shows up in the log, the phone handles it before apps see it. Try changing it under **Settings → Shortcut keys**.
+- **Controller does nothing in Moonlight:** check the Moonlight setting above. Turning the controller on logs `controller buttons go out as device <n>`, and each press logs `sent gamepad BUTTON_A down`.
+- **Locks, Super or the controller don't work at all:** Titan2 Emoji has to be the selected keyboard and the accessibility service has to be on. The app's setup card shows both.
 
-**Sym + C** turns the controller layer on and off (you'll feel a tick and see **PAD**). While it's on, the bound keys are gamepad buttons and every other key types as usual. Default layout:
+<details>
+<summary><b>How it works</b></summary>
 
-| Button          | Key              | Button        | Key           |
-| --------------- | ---------------- | ------------- | ------------- |
-| D-pad ↑ ← ↓ →   | W / A / S / D    | Y / X / A / B | I / J / K / L |
-| LB / LT         | Q / E            | RB / RT       | U / O         |
-| A (also)        | Space            | Start         | Enter         |
-| Select          | Z                | L3 / R3       | X / M         |
+- The layout is `titan2-custom.kcm`, a key character map that the app offers under Settings → Physical keyboard.
+- **Titan2 Emoji** is an input method (keyboard app) that shows nothing until Sym + B, so there's no onscreen keyboard in the way.
+- **Titan2 Key locks & Super** is an accessibility service, because Moonlight reads keys before any keyboard app can (`StreamView.onKeyPreIme`) and only an accessibility key filter sees them first. Keys a lock, Super or the controller changes are taken there and sent to the app through Titan2 Emoji, which also keeps Android's own Meta shortcuts from swallowing Super+B and the like. Every other key goes through untouched. Nothing is logged or stored.
+- Controller buttons are sent as gamepad key events from a device id Moonlight treats as player 1 (id 0, or a built-in non-letter device such as the volume buttons).
 
-**Change the keys:** open Titan2 Keys → **Controller keybinds**. It lists every button (A, B, X, Y, D-pad, LB/RB, LT/RT, Start, Select, L3/R3, Guide) with its key. Tap a button, then press the key you want: any key works, including Shift, Alt, Ctrl (Fn), Backspace or the volume keys. A key moves off whatever button it had. **Clear** unbinds a button, **Reset to defaults** puts the table above back. Changes apply right away.
+</details>
 
-Rules:
-- Holding Sym (or Sym lock) gives the normal Sym layer, so Sym+H/J/K/L are still arrows and Sym+C turns the controller off.
-- Holding Alt types the Alt layer as usual, unless you've bound Alt as a button.
-- Home still toggles Super. Back and the other system keys can't be bound.
-- There are no analog sticks (Android doesn't let an app fake them), so games need to work with the D-pad.
-- Moonlight's own controller shortcuts apply: holding Start toggles its mouse mode, Start+Select+LB+RB ends the stream.
+<details>
+<summary><b>Build it yourself</b></summary>
 
-How it works: the buttons go through the Titan2 Emoji keyboard like Super does, as gamepad key events from a device Moonlight treats as player 1 (id 0, or a built-in non-letter device such as the volume buttons). It's made for Moonlight; Android games may or may not accept these buttons. If nothing happens, check the Moonlight setting in step 5, then the log in Titan2 Keys: turning the controller on shows `controller buttons go out as device <n>`, and each press shows `sent gamepad BUTTON_A down`.
+```sh
+./android/build.sh            # -> titan2-keys.apk in the repo root
+./android/build.sh --install  # same, then installs over adb
+```
 
-## Layout only, via ExKeyMo (no app)
+Run it on an x86-64 Linux PC, not in Termux on the phone (Google's SDK tools only run on x86-64). The first run downloads a JDK 17, the Android SDK and Gradle into `android/.toolchain/` (no root; delete the folder to remove them) and asks you to accept the Android SDK license once. If you already have `JAVA_HOME` / `ANDROID_HOME` set, it uses those.
 
-`keyboard.apk` is the older ExKeyMo build of this layout. It doesn't have Sym+B. To build your own, run exkeymo-server, open it on localhost, paste `titan2-custom.kcm`, and compile an APK. Then:
+`--install` needs the phone on adb: a USB cable with USB debugging on, or **Developer options → Wireless debugging → Pair device with pairing code**, then `android/.toolchain/sdk/platform-tools/adb pair <ip:port>` and `adb connect <ip:port>`.
 
-1. Go to **Settings → System → Languages & input → Physical keyboard**
-2. Select your physical keyboard
-3. For the KCM provider, you must select **"Other"**
-4. Choose your installed Exkeymo layout
+Edit `titan2-custom.kcm` to change the layout. After changing the layout or the default controller keys, `python3 android/tools/readme_art.py` redraws the pictures in `docs/`.
 
-### Hardware Key Setup
+</details>
 
-1. Go to **Settings → Shortcut keys**
-2. Set **Fn** to **Control**
-3. In **Physical Keyboard** settings, toggle **"Show virtual keyboard"** to **OFF**
+<sub>Keywords: Unihertz Titan 2, physical keyboard, onscreen keyboard, on-screen keyboard replacement, emoji keyboard, keyboard layout, KCM, gamepad, controller, Moonlight, Sunshine, Hyprland, Super key, no root.</sub>

@@ -124,6 +124,26 @@ object ControllerBindings {
         else -> KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_").replace('_', ' ')
     }
 
+    /** A key's name short enough to print on a button: "K", "Spc", "Shift". */
+    fun shortName(code: Int): String = when (code) {
+        KeyEvent.KEYCODE_SPACE -> "Spc"
+        KeyEvent.KEYCODE_ENTER -> "Ent"
+        KeyEvent.KEYCODE_DEL -> "Bksp"
+        KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> "Shift"
+        KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> "Alt"
+        KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_CTRL_RIGHT -> "Ctrl"
+        KeyEvent.KEYCODE_VOLUME_UP -> "Vol+"
+        KeyEvent.KEYCODE_VOLUME_DOWN -> "Vol−"
+        else -> keyName(code)
+    }
+
+    /** What the drawn controller prints on each bound button: "K·Spc". */
+    fun buttonLabels(bindings: Map<Int, Int>): Map<Int, String> = BUTTONS.keys.mapNotNull { button ->
+        val keys = keysFor(bindings, button)
+        if (keys.isEmpty()) null
+        else button to (keys.take(2).joinToString("·", transform = ::shortName) + if (keys.size > 2) "+" else "")
+    }.toMap()
+
     private fun save(context: Context, bindings: Map<Int, Int>) {
         cache = bindings
         val encoded = bindings.entries.joinToString(",") { (key, button) -> "$key=$button" }

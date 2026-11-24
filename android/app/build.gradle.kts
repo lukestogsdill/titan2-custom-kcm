@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// The layout stays at the repo root (so it can still be pasted into ExKeyMo) and is
+// The layout stays at the repo root (titan2-custom.kcm, easy to find and edit) and is
 // copied into res/raw at build time. Resource names must be lowercase, no dashes.
 val kcmResDir = layout.buildDirectory.dir("generated/kcm-res").get().asFile
 val copyKcm by tasks.registering(Copy::class) {

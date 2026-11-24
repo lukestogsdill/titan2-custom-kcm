@@ -86,6 +86,19 @@ class SuperKeyService : AccessibilityService() {
         @Volatile
         var keyCapture: ((Int) -> Unit)? = null
 
+        /** Set by ControllerActivity while it's open: gamepad buttons going down and up. */
+        @Volatile
+        var padButtonListener: ((Int, Boolean) -> Unit)? = null
+
+        /** Set by ControllerActivity while it's open: the controller layer turning on or off. */
+        @Volatile
+        var padLayerListener: ((Boolean) -> Unit)? = null
+
+        /** Whether the controller layer (Sym+C) is on. */
+        @Volatile
+        var padOn = false
+            private set
+
         private val DPAD_KEYS = setOf(
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -164,6 +177,7 @@ class SuperKeyService : AccessibilityService() {
     override fun onDestroy() {
         handler.removeCallbacks(holdTimeout)
         releaseAll()
+        padOn = false
         badge?.let { runCatching { getSystemService(WindowManager::class.java).removeView(it) } }
         badge = null
         super.onDestroy()
@@ -246,6 +260,10 @@ class SuperKeyService : AccessibilityService() {
         if (on == (lock in locks)) return
         if (on) locks += lock else locks -= lock
         if (lock == Lock.SUPER && !on) for (mod in modsDown.toList()) modUp(mod)
+        if (lock == Lock.PAD) {
+            padOn = on
+            padLayerListener?.invoke(on)
+        }
         if (lock == Lock.PAD && !on) {
             // Let go of held buttons now; the keys' own releases are dropped later.
             for ((code, sent) in owned.entries.toList()) {
@@ -358,6 +376,7 @@ class SuperKeyService : AccessibilityService() {
         val source = if (code in DPAD_KEYS) InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_DPAD
         else InputDevice.SOURCE_GAMEPAD
         send(action, code, 0, 0, padDevice, source)
+        padButtonListener?.invoke(code, action == KeyEvent.ACTION_DOWN)
     }
 
     /**
