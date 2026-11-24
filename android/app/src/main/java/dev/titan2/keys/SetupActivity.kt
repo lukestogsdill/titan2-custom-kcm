@@ -48,8 +48,11 @@ class SetupActivity : Activity() {
         root.addView(button("Greyed out? App info → ⋮ → Allow restricted settings") {
             open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         })
+        root.addView(button("Controller keybinds (Sym+C turns the controller on)") {
+            startActivity(Intent(this, ControllerActivity::class.java))
+        })
         root.addView(EditText(this).apply {
-            hint = "Test: Sym+B emoji · hold Home for Super · double-tap Shift/Alt/Sym to lock"
+            hint = "Test: Sym+B emoji · Sym+C controller · hold Home for Super · double-tap Shift/Alt/Sym to lock"
         })
         log = label("", 12f)
         log.typeface = Typeface.MONOSPACE

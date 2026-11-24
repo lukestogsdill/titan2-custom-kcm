@@ -30,6 +30,8 @@ import kotlin.math.roundToInt
  *  - Holding Home (or the key with code 408) turns Super (Meta / the Windows key) on and
  *    off, e.g. for Hyprland through Moonlight. A short press of Home still goes home.
  *  - Sym+B opens the emoji panel, in any app.
+ *  - Sym+C turns the controller layer on and off: the keys bound in [ControllerBindings]
+ *    become gamepad buttons (for Moonlight), everything else types as usual.
  *  - A badge at the top of the screen shows what's locked.
  *
  * A key that a lock or Super changes is taken here, and the changed key is sent to the
@@ -76,6 +78,18 @@ class SuperKeyService : AccessibilityService() {
         /** Set by SetupActivity while it is open, to show what the service is doing. */
         @Volatile
         var traceListener: ((String) -> Unit)? = null
+
+        /**
+         * Set by ControllerActivity while it waits for a key to bind. The next bindable key
+         * press goes to it (raw, before any lock or the controller layer changes it).
+         */
+        @Volatile
+        var keyCapture: ((Int) -> Unit)? = null
+
+        private val DPAD_KEYS = setOf(
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        )
     }
 
     /** The badge chips, in display order. */
@@ -84,14 +98,19 @@ class SuperKeyService : AccessibilityService() {
         ALT("ALT", 0xFFE65100.toInt()),
         SYM("SYM", 0xFF2E7D32.toInt()),
         SUPER("SUPER", 0xFF8E24AA.toInt()),
+        PAD("PAD", 0xFFD81B60.toInt()),
     }
 
-    /** What we sent for a key we took over. Its repeats and release are sent the same way. */
+    /**
+     * What we sent for a key we took over. Its repeats and release are sent the same way.
+     * A key the controller layer took has a [target] instead, and doesn't repeat.
+     */
     private class Sent(
         val code: Int,
         val meta: Int,
         val addedShift: Boolean = false,
         val withSuper: Boolean = false,
+        val target: PadTarget? = null,
     )
 
     /** For keys we used up ourselves (Sym+B): drop their repeats and release. */
@@ -105,6 +124,12 @@ class SuperKeyService : AccessibilityService() {
 
     /** Modifier keys we've sent down to the app and not released yet. */
     private val modsDown = LinkedHashSet<Int>()
+
+    /** Controller-layer targets held down, with how many keys hold each (two keys can be A). */
+    private val padHeld = HashMap<PadTarget, Int>()
+
+    /** The device the controller layer's gamepad buttons claim to come from (see [findPadDevice]). */
+    private var padDevice = 0
 
     // Double-tap tracking.
     private var tapLock: Lock? = null
@@ -152,6 +177,13 @@ class SuperKeyService : AccessibilityService() {
             trace("service saw $name " + (if (down) "down" else "up") + " scan=${event.scanCode}")
         }
         if (isSuperKey(event)) return onSuperKey(event, down)
+        if (down && event.repeatCount == 0 && code !in owned &&
+            (capture(event) || controllerToggle(event) || padPress(event))
+        ) {
+            tapLock = null // not a tap of a held modifier, and a bound modifier isn't one either
+            lastTap = null
+            return true
+        }
         val lock = lockFor(code)
         if (lock != null) {
             trackTap(event, lock, down)
@@ -163,7 +195,7 @@ class SuperKeyService : AccessibilityService() {
         val sent = owned[code]
         if (sent != null) {
             if (!down) release(code, sent)
-            else if (sent !== swallow && !isModifier(code)) {
+            else if (sent !== swallow && sent.target == null && !isModifier(code)) {
                 send(KeyEvent.ACTION_DOWN, sent.code, event.repeatCount, sent.meta)
             }
             return true
@@ -214,6 +246,15 @@ class SuperKeyService : AccessibilityService() {
         if (on == (lock in locks)) return
         if (on) locks += lock else locks -= lock
         if (lock == Lock.SUPER && !on) for (mod in modsDown.toList()) modUp(mod)
+        if (lock == Lock.PAD && !on) {
+            // Let go of held buttons now; the keys' own releases are dropped later.
+            for ((code, sent) in owned.entries.toList()) {
+                if (sent.target != null) {
+                    release(code, sent)
+                    owned[code] = swallow
+                }
+            }
+        }
         getSystemService(Vibrator::class.java)
             ?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
         updateBadge()
@@ -251,6 +292,108 @@ class SuperKeyService : AccessibilityService() {
             return
         }
         setLock(Lock.SUPER, turnOn)
+    }
+
+    // ---- controller layer ----
+
+    /** The controller editor is waiting for a key to bind: hand this one over. */
+    private fun capture(event: KeyEvent): Boolean {
+        val listener = keyCapture ?: return false
+        if (event.isSymPressed || !ControllerBindings.canBind(event.keyCode)) return false
+        owned[event.keyCode] = swallow
+        listener(event.keyCode)
+        return true
+    }
+
+    /** Sym+C (held or locked Sym) turns the controller layer on and off. */
+    private fun controllerToggle(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_C) return false
+        if (!event.isSymPressed && (Lock.SYM !in locks || event.isAltPressed)) return false
+        owned[event.keyCode] = swallow
+        val turnOn = Lock.PAD !in locks
+        if (turnOn && EmojiKeyboardService.instance == null) {
+            Toast.makeText(this, "The controller needs Titan2 Emoji as the keyboard", Toast.LENGTH_SHORT).show()
+            trace("controller: Titan2 Emoji isn't the active keyboard")
+            return true
+        }
+        if (turnOn) {
+            padDevice = findPadDevice()
+            trace("controller buttons go out as device $padDevice " +
+                (InputDevice.getDevice(padDevice)?.name?.let { "($it)" } ?: "(no such device)"))
+        }
+        setLock(Lock.PAD, turnOn)
+        return true
+    }
+
+    /**
+     * A key press with the controller layer on: a bound key is sent as its gamepad button
+     * (or key). Sym, held or locked, still gives the normal Sym layer, and so does holding
+     * Alt for the Alt layer, unless Alt is bound as a button itself.
+     */
+    private fun padPress(event: KeyEvent): Boolean {
+        if (Lock.PAD !in locks || event.isSymPressed || Lock.SYM in locks) return false
+        val bindings = ControllerBindings.get(this)
+        if (event.isAltPressed && bindings.keys.none(::isAlt)) return false
+        val target = bindings[event.keyCode] ?: return false
+        val ime = EmojiKeyboardService.instance
+        if (ime == null || !ime.canSendKeys || ime.panelShowing) return false
+        deviceId = event.deviceId
+        owned[event.keyCode] = Sent(target.code, 0, target = target)
+        targetDown(target)
+        return true
+    }
+
+    private fun targetDown(target: PadTarget) {
+        val held = padHeld[target] ?: 0
+        padHeld[target] = held + 1
+        if (held > 0) return
+        when {
+            target.pad -> sendPad(KeyEvent.ACTION_DOWN, target.code)
+            isModifier(target.code) -> modDown(target.code)
+            else -> send(KeyEvent.ACTION_DOWN, target.code, 0, modsMeta())
+        }
+    }
+
+    private fun targetUp(target: PadTarget) {
+        val held = padHeld[target] ?: return
+        if (held > 1) {
+            padHeld[target] = held - 1
+            return
+        }
+        padHeld -= target
+        when {
+            target.pad -> sendPad(KeyEvent.ACTION_UP, target.code)
+            isModifier(target.code) -> modUp(target.code)
+            else -> send(KeyEvent.ACTION_UP, target.code, 0, modsMeta())
+        }
+    }
+
+    private fun sendPad(action: Int, code: Int) {
+        val source = if (code in DPAD_KEYS) InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_DPAD
+        else InputDevice.SOURCE_GAMEPAD
+        send(action, code, 0, 0, padDevice, source)
+    }
+
+    /**
+     * Which device id the gamepad buttons should carry. Moonlight takes a key as gamepad
+     * input when its device is a gamepad or not a letter keyboard, or when it has id 0 and
+     * no device has that id (it's player 1 either way). It types keys from a letter keyboard
+     * like the Titan's, and drops keys from any other id it doesn't know.
+     */
+    private fun findPadDevice(): Int {
+        if (InputDevice.getDevice(0) == null) return 0
+        val candidates: List<InputDevice> = InputDevice.getDeviceIds().toList()
+            .mapNotNull { id -> InputDevice.getDevice(id) }
+            .filter { dev ->
+                !dev.isVirtual && (dev.supportsSource(InputDevice.SOURCE_GAMEPAD) ||
+                    dev.keyboardType != InputDevice.KEYBOARD_TYPE_ALPHABETIC)
+            }
+        // Built-in buttons (e.g. volume keys) first: Moonlight makes those player 1.
+        val pick = candidates.minByOrNull { dev ->
+            val external = if (dev.isExternal) 2 else 0
+            external + if (dev.keyboardType == InputDevice.KEYBOARD_TYPE_NON_ALPHABETIC) 0 else 1
+        }
+        return pick?.id ?: 0
     }
 
     // ---- key presses ----
@@ -363,6 +506,7 @@ class SuperKeyService : AccessibilityService() {
         owned.remove(code)
         when {
             sent === swallow -> {}
+            sent.target != null -> targetUp(sent.target)
             isAlt(code) -> if (owned.keys.none(::isAlt)) modUp(KeyEvent.KEYCODE_ALT_LEFT)
             isModifier(code) -> modUp(code)
             else -> {
@@ -378,6 +522,7 @@ class SuperKeyService : AccessibilityService() {
     private fun releaseAll() {
         for ((code, sent) in owned.entries.toList()) release(code, sent)
         for (mod in modsDown.toList()) modUp(mod)
+        padHeld.clear()
     }
 
     /** Returns false if it was already down. */
@@ -393,14 +538,22 @@ class SuperKeyService : AccessibilityService() {
 
     private fun modsMeta() = modsDown.fold(0) { meta, mod -> meta or (META_BITS[mod] ?: 0) }
 
-    private fun send(action: Int, code: Int, repeat: Int, meta: Int) {
+    private fun send(
+        action: Int,
+        code: Int,
+        repeat: Int,
+        meta: Int,
+        device: Int = deviceId,
+        source: Int = InputDevice.SOURCE_KEYBOARD,
+    ) {
         val now = SystemClock.uptimeMillis()
-        val event = KeyEvent(now, now, action, code, repeat, meta, deviceId, 0, 0, InputDevice.SOURCE_KEYBOARD)
+        val event = KeyEvent(now, now, action, code, repeat, meta, device, 0, 0, source)
         val delivered = EmojiKeyboardService.instance?.sendKey(event) == true
         if (traceListener != null) {
             val name = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
             val dir = if (action == KeyEvent.ACTION_DOWN) "down" else "up"
-            trace("  sent $name $dir meta=0x${Integer.toHexString(meta)}" + if (delivered) "" else " (no app to send to)")
+            val pad = if (source and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD) " gamepad" else ""
+            trace("  sent$pad $name $dir meta=0x${Integer.toHexString(meta)}" + if (delivered) "" else " (no app to send to)")
         }
     }
 
@@ -443,7 +596,7 @@ class SuperKeyService : AccessibilityService() {
 
     // ---- badge ----
 
-    /** A row of chips (CAPS, ALT, SYM, SUPER) in the middle of the status bar. */
+    /** A row of chips (CAPS, ALT, SYM, SUPER, PAD) in the middle of the status bar. */
     private fun addBadge() {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.HORIZONTAL

@@ -19,6 +19,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Edits the controller layer's keys (Sym+C). -->
+        <activity
+            android:name=".ControllerActivity"
+            android:exported="false"
+            android:label="Controller keybinds" />
+
         <!-- The on-screen keyboard: invisible until Sym+B opens the emoji panel. -->
         <service
             android:name=".EmojiKeyboardService"
@@ -33,7 +39,7 @@
                 android:resource="@xml/method" />
         </service>
 
-        <!-- Shift/Alt/Sym locks, hold Home = Super, the lock badge. -->
+        <!-- Shift/Alt/Sym locks, hold Home = Super, Sym+C controller, the lock badge. -->
         <service
             android:name=".SuperKeyService"
             android:exported="true"

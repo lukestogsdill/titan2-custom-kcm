@@ -5,6 +5,7 @@ Optimized physical keyboard layout for the Titan 2. Features a custom Sym layer 
 The **Titan2 Keys** app (`android/`) adds the parts a layout file can't do:
 
 - **Sym + B** toggles an on-screen emoji panel. The rest of the time there's no on-screen keyboard, like "No Keyboard".
+- **Sym + C** turns on a controller layer: keys act as gamepad buttons (for Moonlight). Which key is which button is set in the app.
 - **Double-tap Shift, Alt or Sym** locks it (Shift = caps lock). A badge at the top of the screen shows what's locked.
 - **Holding Home** turns **Super** (the Windows key) on and off, e.g. for Hyprland shortcuts through Moonlight.
 - It includes this layout, so ExKeyMo isn't needed anymore.
@@ -36,7 +37,7 @@ The **Titan2 Keys** app (`android/`) adds the parts a layout file can't do:
 ### Row 4 (Bottom Row)
 - **Base:** [z, x, c, v, Space, b, n, m]
 - **Alt:** [!, 7, 8, 9, ., ,, ?]
-- **Sym:** [=, —, —, —, SEARCH, EMOJI, HOME, END]
+- **Sym:** [=, —, CONTROLLER, —, SEARCH, EMOJI, HOME, END]
 
 ---
 
@@ -59,6 +60,7 @@ Run it on an x86-64 Linux PC, not in Termux on the phone (Google's SDK tools onl
 2. **Physical keyboard layout:** Settings → System → Languages & input → Physical keyboard → pick **Titan 2 Custom** (the one from Titan2 Keys). On newer Android the layout is chosen per keyboard app, so pick it again after switching to Titan2 Emoji.
 3. **Keyboard:** enable **Titan2 Emoji** and switch to it (it replaces "No Keyboard").
 4. **Locks & Super:** Settings → Accessibility → **Titan2 Key locks & Super** → on. If it's greyed out ("restricted setting"), go to App info → ⋮ → **Allow restricted settings** first. Android does this for every sideloaded accessibility app.
+5. **Controller (optional):** in Moonlight, Settings → Input Settings → turn off **Automatic gamepad presence detection**. Otherwise Moonlight tells the PC there's no gamepad and the PC ignores the buttons.
 
 ### Emoji panel (Sym + B)
 
@@ -107,6 +109,28 @@ Rules:
 How it works: Moonlight reads keys before any on-screen keyboard can (`StreamView.onKeyPreIme`), so the accessibility service takes the keys a lock or Super changes. It sends the changed keys through the Titan2 Emoji keyboard, which delivers them straight to the app. That also means Android's own Meta shortcuts don't steal Super+B and the like. Every other key goes through untouched.
 
 **If something doesn't trigger:** open Titan2 Keys and press the key in the test field. The log shows `service saw <key> down scan=<n>` for every key the service gets. If a key never shows up there, the phone is handling it itself before apps get it. Try changing it under **Settings → Shortcut keys**. A different Super key can be set with `SUPER_KEY_CODE` in `SuperKeyService.kt`.
+
+### Controller (Sym + C)
+
+**Sym + C** turns the controller layer on and off (you'll feel a tick and see **PAD**). While it's on, the bound keys are gamepad buttons and every other key types as usual. Default layout:
+
+| Keys            | Gamepad          | Keys      | Gamepad             |
+| --------------- | ---------------- | --------- | ------------------- |
+| W / A / S / D   | D-pad ↑ ← ↓ →    | I / J / K / L | Y / X / A / B   |
+| Q / E           | LB / LT          | U / O     | RB / RT             |
+| Space           | A                | Enter     | Start               |
+| Z               | Select (View)    | X / M     | L3 / R3 (stick click) |
+
+**Change the keys:** open Titan2 Keys → **Controller keybinds**. Tap a key to pick its button (or **None**), or **+ Bind a key** and press any key, including Shift, Alt, Ctrl (Fn), Backspace or the volume keys. A key can also send a keyboard key (Esc, Tab, arrows, letters, F1–F12) for games that use both. **Reset to defaults** puts the table above back. Changes apply right away.
+
+Rules:
+- Holding Sym (or Sym lock) gives the normal Sym layer, so Sym+H/J/K/L are still arrows and Sym+C turns the controller off.
+- Holding Alt types the Alt layer as usual, unless you've bound Alt as a button.
+- Home still toggles Super. Back and the other system keys can't be bound.
+- There are no analog sticks (Android doesn't let an app fake them), so games need to work with the D-pad.
+- Moonlight's own controller shortcuts apply: holding Start toggles its mouse mode, Start+Select+LB+RB ends the stream.
+
+How it works: the buttons go through the Titan2 Emoji keyboard like Super does, as gamepad key events from a device Moonlight treats as player 1 (id 0, or a built-in non-letter device such as the volume buttons). It's made for Moonlight; Android games may or may not accept these buttons. If nothing happens, check the Moonlight setting in step 5, then the log in Titan2 Keys: turning the controller on shows `controller buttons go out as device <n>`, and each press shows `sent gamepad BUTTON_A down`.
 
 ## Layout only, via ExKeyMo (no app)
 
