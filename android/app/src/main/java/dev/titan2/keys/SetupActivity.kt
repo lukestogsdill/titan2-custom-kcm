@@ -29,7 +29,6 @@ class SetupActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        useDarkWindow()
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(dp(18), dp(22), dp(18), dp(32))
@@ -47,6 +46,7 @@ class SetupActivity : Activity() {
         scroll.fitsSystemWindows = true
         scroll.addView(root)
         setContentView(scroll)
+        useDarkWindow()
     }
 
     override fun onResume() {

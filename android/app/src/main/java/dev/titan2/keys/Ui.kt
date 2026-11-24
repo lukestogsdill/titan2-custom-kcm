@@ -64,14 +64,19 @@ fun Context.dp(value: Int) = (value * resources.displayMetrics.density).roundToI
 
 fun Context.dpf(value: Float) = value * resources.displayMetrics.density
 
-/** Dark window background and light status/navigation bar icons. */
+/**
+ * Dark window background and light status/navigation bar icons. Call after setContentView:
+ * window.insetsController reads the decor view, which doesn't exist before that (it throws a
+ * NullPointerException then, rather than returning null).
+ */
 @Suppress("DEPRECATION")
 fun Activity.useDarkWindow() {
+    val decor = window.decorView // creates the decor view if it isn't there yet
     window.setBackgroundDrawable(ColorDrawable(Ui.BG))
     window.statusBarColor = Ui.BG
     window.navigationBarColor = Ui.BG
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        window.insetsController?.setSystemBarsAppearance(
+        decor.windowInsetsController?.setSystemBarsAppearance(
             0,
             WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
         )

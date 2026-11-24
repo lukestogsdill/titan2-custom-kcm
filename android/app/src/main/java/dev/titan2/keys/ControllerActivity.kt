@@ -42,10 +42,12 @@ class ControllerActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        useDarkWindow()
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(dp(18), dp(14), dp(18), dp(28))
+        // Keys here are for binding and testing, not for moving focus around (which would
+        // also draw a focus box on whatever got it). Taps still work.
+        root.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
 
         root.addView(header(), below(16))
 
@@ -91,6 +93,7 @@ class ControllerActivity : Activity() {
         scroll.fitsSystemWindows = true
         scroll.addView(root)
         setContentView(scroll)
+        useDarkWindow()
     }
 
     override fun onResume() {
