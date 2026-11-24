@@ -11,12 +11,16 @@ import android.widget.ScrollView
 import android.widget.TextView
 import kotlin.math.roundToInt
 
-/** Edits the controller layer's keys (Sym+C turns the layer on). */
+/**
+ * Lists the gamepad buttons and the key for each. Tap a button, press a key, and that
+ * key presses it in the controller layer (Sym+C).
+ */
 class ControllerActivity : Activity() {
 
-    private lateinit var bindButton: Button
     private lateinit var rows: LinearLayout
-    private var capturing = false
+
+    /** The button waiting for its new key, if any. */
+    private var capturing: Int? = null
 
     /** A key we used for binding; its release shouldn't do anything here either. */
     private var swallowUp = KeyEvent.KEYCODE_UNKNOWN
@@ -29,9 +33,10 @@ class ControllerActivity : Activity() {
 
         root.addView(label("Controller keybinds", 22f))
         root.addView(label(
-            "Sym+C turns the controller on and off (PAD at the top of the screen). While it's on, " +
-                "the keys below are gamepad buttons and every other key types as usual. " +
-                "Hold Sym (or Alt, if it isn't bound) to type that layer as usual.",
+            "Tap a button, then press the key you want for it. Sym+C turns the controller on " +
+                "and off (PAD at the top of the screen). While it's on, these keys press their " +
+                "buttons and every other key types as usual. Hold Sym (or Alt, if it isn't " +
+                "bound) to type that layer as usual.",
             14f,
         ))
         root.addView(label(
@@ -39,14 +44,12 @@ class ControllerActivity : Activity() {
                 "or the PC won't see a gamepad. There are no analog sticks, so use the D-pad.",
             14f,
         ))
-        bindButton = button(BIND_TEXT) { if (capturing) stopCapture() else startCapture() }
-        root.addView(bindButton)
         rows = LinearLayout(this)
         rows.orientation = LinearLayout.VERTICAL
         root.addView(rows)
         root.addView(button("Reset to defaults") {
             AlertDialog.Builder(this)
-                .setMessage("Put every key back to the default controller layout?")
+                .setMessage("Put every button back to its default key?")
                 .setPositiveButton("Reset") { _, _ ->
                     ControllerBindings.reset(this)
                     render()
@@ -70,32 +73,43 @@ class ControllerActivity : Activity() {
     private fun render() {
         rows.removeAllViews()
         val bindings = ControllerBindings.get(this)
-        if (bindings.isEmpty()) rows.addView(label("No keys bound.", 14f))
-        for ((key, target) in ControllerBindings.sorted(bindings)) {
-            rows.addView(button("${ControllerBindings.keyName(key)}   →   ${target.label}") { pickTarget(key) }.apply {
-                gravity = Gravity.START or Gravity.CENTER_VERTICAL
-            })
+        for ((button, name) in ControllerBindings.BUTTONS) {
+            val keys = ControllerBindings.keysFor(bindings, button)
+            val text = if (capturing == button) "$name   →   press a key… (tap to cancel)"
+            else "$name   →   " + keys.joinToString(", ", transform = ControllerBindings::keyName).ifEmpty { "—" }
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.addView(
+                button(text) { if (capturing == button) stopCapture() else startCapture(button) }.apply {
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+            )
+            row.addView(button("Clear") {
+                ControllerBindings.clear(this, button)
+                stopCapture()
+            }.apply { isEnabled = keys.isNotEmpty() })
+            rows.addView(row)
         }
     }
 
-    // ---- binding a new key ----
-
-    private fun startCapture() {
-        capturing = true
-        bindButton.text = "Press a key to bind… (tap here to cancel)"
+    private fun startCapture(button: Int) {
+        capturing = button
         // The key service sees keys before this screen does, so it hands them over.
         SuperKeyService.keyCapture = ::captured
+        render()
     }
 
     private fun stopCapture() {
-        capturing = false
+        capturing = null
         SuperKeyService.keyCapture = null
-        bindButton.text = BIND_TEXT
+        render()
     }
 
     private fun captured(key: Int) {
+        val button = capturing ?: return
+        ControllerBindings.setKey(this, button, key)
         stopCapture()
-        pickTarget(key)
     }
 
     // Without the key service, keys arrive here instead.
@@ -105,7 +119,7 @@ class ControllerActivity : Activity() {
             swallowUp = KeyEvent.KEYCODE_UNKNOWN
             return true
         }
-        if (capturing && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
+        if (capturing != null && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
             !event.isSymPressed && ControllerBindings.canBind(key)
         ) {
             swallowUp = key
@@ -113,24 +127,6 @@ class ControllerActivity : Activity() {
             return true
         }
         return super.dispatchKeyEvent(event)
-    }
-
-    private fun pickTarget(key: Int) {
-        val targets = ControllerBindings.TARGETS
-        val labels = (listOf("None (types as usual)") + targets.map { it.label }).toTypedArray()
-        val current = ControllerBindings.get(this)[key]
-        val checked = if (current == null) 0 else targets.indexOf(current) + 1
-        AlertDialog.Builder(this)
-            .setTitle("${ControllerBindings.keyName(key)} sends")
-            .setSingleChoiceItems(labels, checked) { dialog, which ->
-                val bindings = LinkedHashMap(ControllerBindings.get(this))
-                if (which == 0) bindings.remove(key) else bindings[key] = targets[which - 1]
-                ControllerBindings.set(this, bindings)
-                dialog.dismiss()
-                render()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
     }
 
     private fun label(text: String, size: Float) = TextView(this).apply {
@@ -146,8 +142,4 @@ class ControllerActivity : Activity() {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
-
-    private companion object {
-        const val BIND_TEXT = "+ Bind a key"
-    }
 }

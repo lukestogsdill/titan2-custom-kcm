@@ -103,14 +103,14 @@ class SuperKeyService : AccessibilityService() {
 
     /**
      * What we sent for a key we took over. Its repeats and release are sent the same way.
-     * A key the controller layer took has a [target] instead, and doesn't repeat.
+     * A key the controller layer took has the gamepad [button] instead, and doesn't repeat.
      */
     private class Sent(
         val code: Int,
         val meta: Int,
         val addedShift: Boolean = false,
         val withSuper: Boolean = false,
-        val target: PadTarget? = null,
+        val button: Int? = null,
     )
 
     /** For keys we used up ourselves (Sym+B): drop their repeats and release. */
@@ -125,8 +125,8 @@ class SuperKeyService : AccessibilityService() {
     /** Modifier keys we've sent down to the app and not released yet. */
     private val modsDown = LinkedHashSet<Int>()
 
-    /** Controller-layer targets held down, with how many keys hold each (two keys can be A). */
-    private val padHeld = HashMap<PadTarget, Int>()
+    /** Gamepad buttons held down, with how many keys hold each (two keys can be A). */
+    private val padHeld = HashMap<Int, Int>()
 
     /** The device the controller layer's gamepad buttons claim to come from (see [findPadDevice]). */
     private var padDevice = 0
@@ -195,7 +195,7 @@ class SuperKeyService : AccessibilityService() {
         val sent = owned[code]
         if (sent != null) {
             if (!down) release(code, sent)
-            else if (sent !== swallow && sent.target == null && !isModifier(code)) {
+            else if (sent !== swallow && sent.button == null && !isModifier(code)) {
                 send(KeyEvent.ACTION_DOWN, sent.code, event.repeatCount, sent.meta)
             }
             return true
@@ -249,7 +249,7 @@ class SuperKeyService : AccessibilityService() {
         if (lock == Lock.PAD && !on) {
             // Let go of held buttons now; the keys' own releases are dropped later.
             for ((code, sent) in owned.entries.toList()) {
-                if (sent.target != null) {
+                if (sent.button != null) {
                     release(code, sent)
                     owned[code] = swallow
                 }
@@ -326,46 +326,32 @@ class SuperKeyService : AccessibilityService() {
     }
 
     /**
-     * A key press with the controller layer on: a bound key is sent as its gamepad button
-     * (or key). Sym, held or locked, still gives the normal Sym layer, and so does holding
+     * A key press with the controller layer on: a bound key is sent as its gamepad button.
+     * Sym, held or locked, still gives the normal Sym layer, and so does holding
      * Alt for the Alt layer, unless Alt is bound as a button itself.
      */
     private fun padPress(event: KeyEvent): Boolean {
         if (Lock.PAD !in locks || event.isSymPressed || Lock.SYM in locks) return false
         val bindings = ControllerBindings.get(this)
         if (event.isAltPressed && bindings.keys.none(::isAlt)) return false
-        val target = bindings[event.keyCode] ?: return false
+        val button = bindings[event.keyCode] ?: return false
         val ime = EmojiKeyboardService.instance
         if (ime == null || !ime.canSendKeys || ime.panelShowing) return false
-        deviceId = event.deviceId
-        owned[event.keyCode] = Sent(target.code, 0, target = target)
-        targetDown(target)
+        owned[event.keyCode] = Sent(button, 0, button = button)
+        val held = padHeld[button] ?: 0
+        padHeld[button] = held + 1
+        if (held == 0) sendPad(KeyEvent.ACTION_DOWN, button)
         return true
     }
 
-    private fun targetDown(target: PadTarget) {
-        val held = padHeld[target] ?: 0
-        padHeld[target] = held + 1
-        if (held > 0) return
-        when {
-            target.pad -> sendPad(KeyEvent.ACTION_DOWN, target.code)
-            isModifier(target.code) -> modDown(target.code)
-            else -> send(KeyEvent.ACTION_DOWN, target.code, 0, modsMeta())
-        }
-    }
-
-    private fun targetUp(target: PadTarget) {
-        val held = padHeld[target] ?: return
+    private fun buttonUp(button: Int) {
+        val held = padHeld[button] ?: return
         if (held > 1) {
-            padHeld[target] = held - 1
+            padHeld[button] = held - 1
             return
         }
-        padHeld -= target
-        when {
-            target.pad -> sendPad(KeyEvent.ACTION_UP, target.code)
-            isModifier(target.code) -> modUp(target.code)
-            else -> send(KeyEvent.ACTION_UP, target.code, 0, modsMeta())
-        }
+        padHeld -= button
+        sendPad(KeyEvent.ACTION_UP, button)
     }
 
     private fun sendPad(action: Int, code: Int) {
@@ -506,7 +492,7 @@ class SuperKeyService : AccessibilityService() {
         owned.remove(code)
         when {
             sent === swallow -> {}
-            sent.target != null -> targetUp(sent.target)
+            sent.button != null -> buttonUp(sent.button)
             isAlt(code) -> if (owned.keys.none(::isAlt)) modUp(KeyEvent.KEYCODE_ALT_LEFT)
             isModifier(code) -> modUp(code)
             else -> {

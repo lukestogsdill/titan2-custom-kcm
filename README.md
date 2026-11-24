@@ -5,7 +5,7 @@ Optimized physical keyboard layout for the Titan 2. Features a custom Sym layer 
 The **Titan2 Keys** app (`android/`) adds the parts a layout file can't do:
 
 - **Sym + B** toggles an on-screen emoji panel. The rest of the time there's no on-screen keyboard, like "No Keyboard".
-- **Sym + C** turns on a controller layer: keys act as gamepad buttons (for Moonlight). Which key is which button is set in the app.
+- **Sym + C** turns on a controller layer: keys act as gamepad buttons (for Moonlight). The app lists the buttons and you pick a key for each.
 - **Double-tap Shift, Alt or Sym** locks it (Shift = caps lock). A badge at the top of the screen shows what's locked.
 - **Holding Home** turns **Super** (the Windows key) on and off, e.g. for Hyprland shortcuts through Moonlight.
 - It includes this layout, so ExKeyMo isn't needed anymore.
@@ -114,14 +114,14 @@ How it works: Moonlight reads keys before any on-screen keyboard can (`StreamVie
 
 **Sym + C** turns the controller layer on and off (you'll feel a tick and see **PAD**). While it's on, the bound keys are gamepad buttons and every other key types as usual. Default layout:
 
-| Keys            | Gamepad          | Keys      | Gamepad             |
-| --------------- | ---------------- | --------- | ------------------- |
-| W / A / S / D   | D-pad ↑ ← ↓ →    | I / J / K / L | Y / X / A / B   |
-| Q / E           | LB / LT          | U / O     | RB / RT             |
-| Space           | A                | Enter     | Start               |
-| Z               | Select (View)    | X / M     | L3 / R3 (stick click) |
+| Button          | Key              | Button        | Key           |
+| --------------- | ---------------- | ------------- | ------------- |
+| D-pad ↑ ← ↓ →   | W / A / S / D    | Y / X / A / B | I / J / K / L |
+| LB / LT         | Q / E            | RB / RT       | U / O         |
+| A (also)        | Space            | Start         | Enter         |
+| Select          | Z                | L3 / R3       | X / M         |
 
-**Change the keys:** open Titan2 Keys → **Controller keybinds**. Tap a key to pick its button (or **None**), or **+ Bind a key** and press any key, including Shift, Alt, Ctrl (Fn), Backspace or the volume keys. A key can also send a keyboard key (Esc, Tab, arrows, letters, F1–F12) for games that use both. **Reset to defaults** puts the table above back. Changes apply right away.
+**Change the keys:** open Titan2 Keys → **Controller keybinds**. It lists every button (A, B, X, Y, D-pad, LB/RB, LT/RT, Start, Select, L3/R3, Guide) with its key. Tap a button, then press the key you want: any key works, including Shift, Alt, Ctrl (Fn), Backspace or the volume keys. A key moves off whatever button it had. **Clear** unbinds a button, **Reset to defaults** puts the table above back. Changes apply right away.
 
 Rules:
 - Holding Sym (or Sym lock) gives the normal Sym layer, so Sym+H/J/K/L are still arrows and Sym+C turns the controller off.
