@@ -2,6 +2,7 @@ package dev.titan2.keys
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.net.Uri
@@ -18,12 +19,22 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** The home screen: setup checklist, the controller, a shortcut cheat sheet and a key tester. */
+/** Whether Titan2 Emoji is the keyboard in use. */
+fun Context.imeActive(): Boolean =
+    Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)?.startsWith("$packageName/") == true
+
+/** Whether the key service (Titan2 Key locks & Super) is turned on. */
+fun Context.keyServiceOn(): Boolean = getSystemService(AccessibilityManager::class.java)
+    .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+    .any { it.resolveInfo.serviceInfo.packageName == packageName }
+
+/** The home screen: setup checklist, the layout, the controller, a shortcut cheat sheet and a key tester. */
 class SetupActivity : Activity() {
 
     private lateinit var steps: LinearLayout
     private lateinit var progress: TextView
     private lateinit var miniPad: GamepadView
+    private lateinit var miniBoard: KeyboardView
     private lateinit var log: TextView
     private val lines = ArrayDeque<String>()
 
@@ -35,9 +46,10 @@ class SetupActivity : Activity() {
 
         root.addView(label("TITAN2 KEYS", 12f, Ui.PINK, Ui.BOLD).apply { letterSpacing = 0.2f })
         root.addView(label("Your Titan 2 keyboard,\nleveled up.", 30f, Ui.TEXT, Ui.HEAVY), below(6).apply { topMargin = dp(6) })
-        root.addView(label("Custom layout · emoji panel · controller layer · key locks · Super key", 14f, Ui.MUTED), below(20))
+        root.addView(label("Your own layout · emoji panel · controller layer · key locks · Super key", 14f, Ui.MUTED), below(20))
 
         root.addView(setupCard(), below())
+        root.addView(layoutCard(), below())
         root.addView(controllerCard(), below())
         root.addView(shortcutsCard(), below())
         root.addView(testCard(), below(0))
@@ -52,6 +64,8 @@ class SetupActivity : Activity() {
     override fun onResume() {
         super.onResume()
         refresh()
+        miniBoard.layout = KeyLayout.get(this)
+        miniBoard.changed = KeyLayout.changedKeys(this)
         miniPad.labels = ControllerBindings.buttonLabels(ControllerBindings.get(this))
         miniPad.live = SuperKeyService.padOn
         SuperKeyService.traceListener = ::addLine
@@ -89,6 +103,27 @@ class SetupActivity : Activity() {
         steps = LinearLayout(context)
         steps.orientation = LinearLayout.VERTICAL
         addView(steps)
+    }
+
+    private fun layoutCard() = card().apply {
+        val radius = dpf(22f)
+        background = Ui.ripple(Ui.rounded(Ui.CARD, radius, Ui.STROKE, dp(1)), radius)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { startActivity(Intent(this@SetupActivity, LayoutActivity::class.java)) }
+
+        miniBoard = KeyboardView(context)
+        addView(miniBoard, below(10))
+        val row = LinearLayout(context)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        val texts = LinearLayout(context)
+        texts.orientation = LinearLayout.VERTICAL
+        texts.addView(label("Keyboard layout", 18f, Ui.TEXT, Ui.BOLD))
+        texts.addView(label("Change what any key types, alone or with Shift, Alt or Sym. Tap to edit.", 13f, Ui.MUTED))
+        row.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(label("›", 28f, Ui.PINK, Ui.BOLD).apply { setPadding(dp(12), 0, 0, dp(4)) })
+        addView(row)
     }
 
     private fun controllerCard() = card().apply {
@@ -167,11 +202,8 @@ class SetupActivity : Activity() {
     private fun refresh() {
         val imm = getSystemService(InputMethodManager::class.java)
         val imeOn = imm.enabledInputMethodList.any { it.packageName == packageName }
-        val imeActive = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
-            ?.startsWith("$packageName/") == true
-        val serviceOn = getSystemService(AccessibilityManager::class.java)
-            .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-            .any { it.resolveInfo.serviceInfo.packageName == packageName }
+        val imeActive = imeActive()
+        val serviceOn = keyServiceOn()
 
         steps.removeAllViews()
         steps.addView(step(1, "Pick the Titan 2 Custom layout", "Settings → Physical keyboard", null) {

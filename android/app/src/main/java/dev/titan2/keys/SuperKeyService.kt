@@ -26,18 +26,20 @@ import kotlin.math.roundToInt
 /**
  * The hardware-keyboard extras that need to see every key first:
  *
+ *  - Your keyboard layout ([KeyLayout]): keys you changed type what you set them to.
  *  - Double-tap Shift, Alt or Sym to lock it (Shift locks caps). Tap it once to unlock.
  *  - Holding Home (or the key with code 408) turns Super (Meta / the Windows key) on and
  *    off, e.g. for Hyprland through Moonlight. A short press of Home still goes home.
- *  - Sym+B opens the emoji panel, in any app.
+ *  - Sym+B opens the emoji panel, in any app (wherever the layout puts it).
  *  - Sym+C turns the controller layer on and off: the keys bound in [ControllerBindings]
  *    become gamepad buttons (for Moonlight), everything else types as usual.
  *  - A badge at the top of the screen shows what's locked.
  *
- * A key that a lock or Super changes is taken here, and the changed key is sent to the
- * focused app through the Titan2 Emoji keyboard (an accessibility service can't type by
- * itself). Keys sent that way go straight to the app, so Android's own Meta shortcuts
- * can't swallow them. Every other key goes through untouched.
+ * Android types the built-in layout (titan2-custom.kcm) by itself. A key that your layout,
+ * a lock or Super changes is taken here, and what it should type is sent to the focused app
+ * through the Titan2 Emoji keyboard (an accessibility service can't type by itself). Keys
+ * sent that way go straight to the app, so Android's own Meta shortcuts can't swallow them.
+ * Every other key goes through untouched.
  *
  * Why an accessibility service and not just the keyboard: Moonlight reads keys in
  * StreamView.onKeyPreIme, before any keyboard sees them. Only an accessibility key
@@ -60,9 +62,13 @@ class SuperKeyService : AccessibilityService() {
         /** Besides Home, the key whose scan code (or keycode) is this one toggles Super too. */
         const val SUPER_KEY_CODE = 408
 
+        private const val SHIFT_BITS = KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
         private const val SYM_BITS = KeyEvent.META_SYM_ON
         private const val ALT_BITS = KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON
-        private const val LAYER_MASK = KeyEvent.META_SYM_ON or KeyEvent.META_ALT_MASK
+
+        /** The modifiers that pick a character. A key sent as some character drops them. */
+        private const val TYPING_MASK = KeyEvent.META_SHIFT_MASK or KeyEvent.META_ALT_MASK or
+            KeyEvent.META_SYM_ON or KeyEvent.META_CAPS_LOCK_ON
 
         private val META_BITS = mapOf(
             KeyEvent.KEYCODE_META_LEFT to (KeyEvent.META_META_ON or KeyEvent.META_META_LEFT_ON),
@@ -85,6 +91,13 @@ class SuperKeyService : AccessibilityService() {
          */
         @Volatile
         var keyCapture: ((Int) -> Unit)? = null
+
+        /**
+         * Set by LayoutActivity while it waits for keys: a key press goes to it, as the key and
+         * the layer it's on (Alt+W is W's Alt), instead of typing.
+         */
+        @Volatile
+        var layoutCapture: ((Int, Layer) -> Unit)? = null
 
         /** Set by ControllerActivity while it's open: gamepad buttons going down and up. */
         @Volatile
@@ -117,6 +130,7 @@ class SuperKeyService : AccessibilityService() {
     /**
      * What we sent for a key we took over. Its repeats and release are sent the same way.
      * A key the controller layer took has the gamepad [button] instead, and doesn't repeat.
+     * A key that typed [text] types it again on repeats if it [repeats], and its release does nothing.
      */
     private class Sent(
         val code: Int,
@@ -124,7 +138,39 @@ class SuperKeyService : AccessibilityService() {
         val addedShift: Boolean = false,
         val withSuper: Boolean = false,
         val button: Int? = null,
+        val text: String? = null,
+        val repeats: Boolean = false,
     )
+
+    /** What a key press types by the layout. */
+    private class Typed(
+        /** The key pressed, one of [KeyLayout.KEYS] (Sym+H is H, though it arrives as ←). */
+        val key: Int,
+        /** The layer the press is on: from the held modifiers, a lock or caps lock. */
+        val layer: Layer,
+        /** The layer [output] comes from, after falling back (Sym+X: X's Base). */
+        val cell: Layer,
+        val output: Output,
+        /** Ctrl or Meta is held. */
+        val chord: Boolean,
+        /** Sym or Alt lock picked [layer]. */
+        val locked: Boolean,
+        /** Caps lock picked [layer] (Shift). */
+        val caps: Boolean,
+        /** The key as it is already types [output] (through the .kcm): nothing to change. */
+        val asIs: Boolean,
+        /** [output] is the built-in layout's own for [cell]. */
+        val builtIn: Boolean,
+    )
+
+    /** How a changed key press gets to the app. */
+    private sealed interface Plan {
+        /** As key [code] with [meta], down now and up when the key comes up. */
+        class Press(val code: Int, val meta: Int, val addShift: Boolean = false) : Plan
+
+        /** As [text], typed into the app. */
+        class Type(val text: String) : Plan
+    }
 
     /** For keys we used up ourselves (Sym+B): drop their repeats and release. */
     private val swallow = Sent(KeyEvent.KEYCODE_UNKNOWN, 0)
@@ -134,6 +180,12 @@ class SuperKeyService : AccessibilityService() {
 
     /** Keys we took over, by hardware keycode. Their releases are ours too. */
     private val owned = HashMap<Int, Sent>()
+
+    /**
+     * Sym and Alt keys held down right now. Events usually say so in their meta state, but not
+     * a key the .kcm swapped: Sym+H arrives as ← without Sym.
+     */
+    private val heldMods = HashSet<Int>()
 
     /** Modifier keys we've sent down to the app and not released yet. */
     private val modsDown = LinkedHashSet<Int>()
@@ -160,9 +212,6 @@ class SuperKeyService : AccessibilityService() {
 
     private val usKeyboard by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
 
-    /** The Sym layer's `replace` entries in titan2-custom.kcm, e.g. H → DPAD_LEFT. */
-    private val symReplace by lazy { loadSymReplaces() }
-
     private var badge: LinearLayout? = null
 
     override fun onServiceConnected() {
@@ -177,6 +226,7 @@ class SuperKeyService : AccessibilityService() {
     override fun onDestroy() {
         handler.removeCallbacks(holdTimeout)
         releaseAll()
+        heldMods.clear()
         padOn = false
         badge?.let { runCatching { getSystemService(WindowManager::class.java).removeView(it) } }
         badge = null
@@ -186,14 +236,17 @@ class SuperKeyService : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val down = event.action == KeyEvent.ACTION_DOWN
+        if (code == KeyEvent.KEYCODE_SYM || isAlt(code)) {
+            if (down) heldMods += code else heldMods -= code
+        }
         if (event.repeatCount == 0 && traceListener != null) {
             val name = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
             trace("service saw $name " + (if (down) "down" else "up") + " scan=${event.scanCode}")
         }
         if (isSuperKey(event)) return onSuperKey(event, down)
-        if (down && event.repeatCount == 0 && code !in owned &&
-            (capture(event) || controllerToggle(event) || padPress(event))
-        ) {
+        val fresh = down && event.repeatCount == 0 && code !in owned
+        val typed = if (fresh) typed(event) else null
+        if (fresh && (layoutCapture(event, typed) || capture(event) || controllerToggle(event, typed) || padPress(event))) {
             tapLock = null // not a tap of a held modifier, and a bound modifier isn't one either
             lastTap = null
             return true
@@ -209,13 +262,15 @@ class SuperKeyService : AccessibilityService() {
         val sent = owned[code]
         if (sent != null) {
             if (!down) release(code, sent)
-            else if (sent !== swallow && sent.button == null && !isModifier(code)) {
+            else if (sent.text != null) {
+                if (sent.repeats) commit(sent.text)
+            } else if (sent !== swallow && sent.button == null && !isModifier(code)) {
                 send(KeyEvent.ACTION_DOWN, sent.code, event.repeatCount, sent.meta)
             }
             return true
         }
-        if (!down || event.repeatCount > 0) return false
-        return press(event)
+        if (!fresh) return false
+        return press(event, typed)
     }
 
     // ---- locks ----
@@ -317,16 +372,15 @@ class SuperKeyService : AccessibilityService() {
     /** The controller editor is waiting for a key to bind: hand this one over. */
     private fun capture(event: KeyEvent): Boolean {
         val listener = keyCapture ?: return false
-        if (event.isSymPressed || !ControllerBindings.canBind(event.keyCode)) return false
+        if (symHeld(event) || !ControllerBindings.canBind(event.keyCode)) return false
         owned[event.keyCode] = swallow
         listener(event.keyCode)
         return true
     }
 
-    /** Sym+C (held or locked Sym) turns the controller layer on and off. */
-    private fun controllerToggle(event: KeyEvent): Boolean {
-        if (event.keyCode != KeyEvent.KEYCODE_C) return false
-        if (!event.isSymPressed && (Lock.SYM !in locks || event.isAltPressed)) return false
+    /** The layout's controller key (Sym+C, held or locked Sym, out of the box) turns the controller layer on and off. */
+    private fun controllerToggle(event: KeyEvent, typed: Typed?): Boolean {
+        if (typed?.output != Output.Key(KeyLayout.CONTROLLER)) return false
         owned[event.keyCode] = swallow
         val turnOn = Lock.PAD !in locks
         if (turnOn && EmojiKeyboardService.instance == null) {
@@ -349,7 +403,7 @@ class SuperKeyService : AccessibilityService() {
      * Alt for the Alt layer, unless Alt is bound as a button itself.
      */
     private fun padPress(event: KeyEvent): Boolean {
-        if (Lock.PAD !in locks || event.isSymPressed || Lock.SYM in locks) return false
+        if (Lock.PAD !in locks || symHeld(event) || Lock.SYM in locks) return false
         val bindings = ControllerBindings.get(this)
         if (event.isAltPressed && bindings.keys.none(::isAlt)) return false
         val button = bindings[event.keyCode] ?: return false
@@ -403,8 +457,74 @@ class SuperKeyService : AccessibilityService() {
 
     // ---- key presses ----
 
+    /**
+     * What [event] types by the layout, or null if it isn't one of the layout's keys.
+     * Sym lock acts like holding Sym, Alt lock like holding Alt, but only on keys where that
+     * layer types something else: with Alt lock, Backspace and Space stay as they are.
+     * Holding either key overrides the locks for that press.
+     */
+    private fun typed(event: KeyEvent): Typed? {
+        val shift = event.isShiftPressed
+        val alt = altHeld(event)
+        val sym = symHeld(event)
+        val chord = event.isCtrlPressed || event.isMetaPressed
+        // The layer the held keys pick by themselves, like the .kcm: Alt over Sym over Shift.
+        // With Ctrl or Meta held the .kcm types nothing and swaps nothing: the key stays itself.
+        val natural = when {
+            chord -> null
+            alt -> Layer.ALT
+            sym -> Layer.SYM
+            shift -> Layer.SHIFT
+            else -> Layer.BASE
+        }
+        val key = KeyLayout.physicalKey(this, event.keyCode, natural, shift) ?: return null
+        val layout = KeyLayout.get(this)
+        var layer = natural ?: Layer.BASE
+        var locked = false
+        var caps = false
+        if (!alt && !sym) {
+            if (Lock.SYM in locks && layout.changes(key, Layer.SYM) &&
+                (!chord || layout[key, Layer.SYM] is Output.Key) // Ctrl + Sym lock + H = Ctrl+←
+            ) {
+                layer = Layer.SYM
+                locked = true
+            } else if (Lock.ALT in locks && !chord && layout.changes(key, Layer.ALT)) {
+                layer = Layer.ALT
+                locked = true
+            } else if (layer == Layer.BASE && !chord && Lock.CAPS in locks && Lock.SUPER !in locks &&
+                layout.capsLocks(key)
+            ) {
+                // Caps lock: letters only, and not while Super is on (use Shift for Super+Shift+B).
+                layer = Layer.SHIFT
+                caps = true
+            }
+        }
+        val (cell, output) = layout.resolve(key, layer, shift)
+        val builtIn = KeyLayout.builtIn(this)
+        return Typed(
+            key = key,
+            layer = layer,
+            cell = cell,
+            output = output,
+            chord = chord,
+            locked = locked,
+            caps = caps,
+            asIs = !locked && !caps && output == builtIn.resolve(key, layer, shift).second,
+            builtIn = output == builtIn[key, cell],
+        )
+    }
+
+    /** The layout editor is waiting for keys: tell it which key and layer, instead of typing. */
+    private fun layoutCapture(event: KeyEvent, typed: Typed?): Boolean {
+        val listener = layoutCapture ?: return false
+        if (typed == null) return false
+        owned[event.keyCode] = swallow
+        listener(typed.key, typed.layer)
+        return true
+    }
+
     /** A new key press. Returns true if we took it over. */
-    private fun press(event: KeyEvent): Boolean {
+    private fun press(event: KeyEvent, typed: Typed?): Boolean {
         val code = event.keyCode
         val superOn = Lock.SUPER in locks
 
@@ -418,80 +538,130 @@ class SuperKeyService : AccessibilityService() {
             return true
         }
 
-        // Sym lock acts like holding Sym, Alt lock like holding Alt, but only on keys where
-        // that layer has something: with Alt lock, Backspace and Space stay as they are.
-        // Holding the other layer's key overrides the lock for that press.
-        val kcm = event.keyCharacterMap
-        val chord = event.isCtrlPressed || event.isMetaPressed
-        var key = code
-        var layer = 0
-        if (Lock.SYM in locks && !event.isSymPressed && !event.isAltPressed) {
-            val replaced = symReplace[code]
-            if (replaced != null) key = replaced
-            else if (!chord && changes(kcm, code, SYM_BITS)) layer = SYM_BITS
-        }
-        if (key == code && layer == 0 && !chord && Lock.ALT in locks &&
-            !event.isAltPressed && !event.isSymPressed && changes(kcm, code, ALT_BITS)
-        ) layer = ALT_BITS
-
         val ime = EmojiKeyboardService.instance
-        if (key == EmojiKeyboardService.TOGGLE_KEY) {
-            if (ime == null && key == code) return false
+        if (typed == null) return pressOther(event, ime, superOn)
+        val output = typed.output
+        if (output == Output.Key(EmojiKeyboardService.TOGGLE_KEY)) {
+            if (ime == null && code == EmojiKeyboardService.TOGGLE_KEY) return false
             ime?.togglePanel()
             owned[code] = swallow
             return true
         }
+        if (output == Output.None) {
+            owned[code] = swallow
+            trace("  nothing: the layout has this key do nothing")
+            return true
+        }
 
-        // Caps lock: letters only, and not while Super is on (use Shift for Super+Shift+B).
-        val caps = !superOn && !chord && key == code && layer == 0 && Lock.CAPS in locks &&
-            !event.isShiftPressed && !event.isAltPressed && !event.isSymPressed &&
-            changes(kcm, code, KeyEvent.META_CAPS_LOCK_ON)
-
-        if (!superOn && key == code && layer == 0 && !caps) return false
+        if (!superOn && typed.asIs) return false
         if (ime == null || !ime.canSendKeys) return false
         deviceId = event.deviceId
+        val plan = plan(event, typed)
 
         if (ime.panelShowing) {
             // The emoji panel reads the keyboard itself. Only changed keys need handing over.
-            if (key == code && layer == 0) return false
-            val changed = KeyEvent(
-                event.downTime, event.eventTime, KeyEvent.ACTION_DOWN, key, 0,
-                event.metaState or layer, event.deviceId, event.scanCode, event.flags, event.source,
-            )
-            if (ime.panelKey(changed)) {
+            if (typed.asIs) return false
+            val used = when (plan) {
+                is Plan.Press -> ime.panelKey(
+                    KeyEvent(
+                        event.downTime, event.eventTime, KeyEvent.ACTION_DOWN, plan.code, 0,
+                        plan.meta or if (plan.addShift) SHIFT_BITS else 0,
+                        event.deviceId, event.scanCode, event.flags, event.source,
+                    ),
+                )
+                is Plan.Type -> ime.panelText(plan.text)
+                null -> false
+            }
+            if (used) {
                 owned[code] = swallow
                 return true
             }
         }
 
         if (superOn) {
-            pressWithSuper(event, key, layer)
+            pressWithSuper(event, typed)
             return true
         }
-        val addedShift = caps && modDown(KeyEvent.KEYCODE_SHIFT_LEFT)
-        val meta = event.metaState or layer or modsMeta()
-        owned[code] = Sent(key, meta, addedShift)
-        send(KeyEvent.ACTION_DOWN, key, 0, meta)
+        when (plan) {
+            null -> return false
+            is Plan.Press -> {
+                val addedShift = plan.addShift && modDown(KeyEvent.KEYCODE_SHIFT_LEFT)
+                val meta = plan.meta or modsMeta()
+                owned[code] = Sent(plan.code, meta, addedShift)
+                send(KeyEvent.ACTION_DOWN, plan.code, 0, meta)
+            }
+            is Plan.Type -> {
+                // One character repeats while held, like any key; longer text is typed once.
+                val repeats = plan.text.codePointCount(0, plan.text.length) == 1
+                owned[code] = Sent(KeyEvent.KEYCODE_UNKNOWN, 0, text = plan.text, repeats = repeats)
+                commit(plan.text)
+            }
+        }
+        return true
+    }
+
+    /**
+     * How to get [t] to the app. Null leaves the key as it is (Ctrl + a key that types
+     * something a US keyboard doesn't have: there's no shortcut to send).
+     */
+    private fun plan(event: KeyEvent, t: Typed): Plan? = when (val output = t.output) {
+        // A key: sent without the modifier that picked it (Sym+H is ←, Shift+Sym+H is Shift+←).
+        is Output.Key -> Plan.Press(output.code, event.metaState and layerMask(t.cell).inv())
+        is Output.Text -> when {
+            // A lock picked a layer whose character is the built-in one: send the key with the
+            // layer's modifier on and the .kcm types it (Alt lock + W = Alt+W = 1).
+            (t.locked || t.caps) && t.cell == t.layer && t.builtIn -> Plan.Press(
+                t.key,
+                event.metaState or if (t.caps) 0 else layerBits(t.layer),
+                addShift = t.caps,
+            )
+            // Another character: the US-keyboard key that types it, which also works in
+            // Moonlight. Anything else is typed as text.
+            else -> usKeyFor(output.text)?.let { (code, needsShift) ->
+                var meta = event.metaState and TYPING_MASK.inv()
+                if (needsShift && event.isShiftPressed) meta = meta or (event.metaState and KeyEvent.META_SHIFT_MASK)
+                Plan.Press(code, meta, addShift = needsShift && !event.isShiftPressed)
+            } ?: if (t.chord) null else Plan.Type(output.text)
+        }
+        Output.None -> null
+    }
+
+    /** A key that isn't in the layout (Back, a key on another keyboard): only Super changes it. */
+    private fun pressOther(event: KeyEvent, ime: EmojiKeyboardService?, superOn: Boolean): Boolean {
+        val code = event.keyCode
+        if (code == EmojiKeyboardService.TOGGLE_KEY) {
+            if (ime == null) return false
+            ime.togglePanel()
+            owned[code] = swallow
+            return true
+        }
+        if (!superOn || ime == null || !ime.canSendKeys || ime.panelShowing) return false
+        deviceId = event.deviceId
+        pressWithSuper(event, null)
         return true
     }
 
     /** A key press while Super is on: sent as Super+key. */
-    private fun pressWithSuper(event: KeyEvent, layerKey: Int, layer: Int) {
-        var key = layerKey
+    private fun pressWithSuper(event: KeyEvent, typed: Typed?) {
+        var key = typed?.key ?: event.keyCode
         var shift = false
         var alt = owned.keys.any(::isAlt)
-        // On the Titan, Alt and Sym pick characters (Alt+W = 1, Sym+W = ~). Send that
-        // character's key instead: Super+Alt+W = Super+1. Keys where Alt changes nothing
-        // (Enter, Space) keep Alt: Super+Alt+Space stays Super+Alt+Space.
-        val layerMeta = (event.metaState or layer) and LAYER_MASK
-        if (layerMeta != 0) {
-            val kcm = event.keyCharacterMap
-            val ch = kcm.get(key, layerMeta) and KeyCharacterMap.COMBINING_ACCENT_MASK
-            if (ch != 0 && ch != kcm.get(key, 0)) {
-                usKeyFor(ch.toChar())?.let { (usKey, needsShift) ->
+        if (typed != null) {
+            // On the Titan, Alt and Sym pick characters (Alt+W = 1, Sym+W = ~). Send that
+            // character's key instead: Super+Alt+W = Super+1. Keys where Alt changes nothing
+            // (Enter, Space) keep Alt: Super+Alt+Space stays Super+Alt+Space. A key you gave
+            // another character sends that character's key the same way.
+            val output = typed.output
+            val picked = (typed.cell == Layer.ALT || typed.cell == Layer.SYM) &&
+                output != KeyLayout.get(this).resolve(typed.key, Layer.BASE, false).second
+            if (output is Output.Key) {
+                key = output.code
+                if (picked) alt = false
+            } else if (output is Output.Text && (picked || !typed.builtIn)) {
+                usKeyFor(output.text)?.let { (usKey, needsShift) ->
                     key = usKey
                     shift = needsShift
-                    alt = false
+                    if (picked) alt = false
                 }
             }
         }
@@ -511,6 +681,7 @@ class SuperKeyService : AccessibilityService() {
         owned.remove(code)
         when {
             sent === swallow -> {}
+            sent.text != null -> {}
             sent.button != null -> buttonUp(sent.button)
             isAlt(code) -> if (owned.keys.none(::isAlt)) modUp(KeyEvent.KEYCODE_ALT_LEFT)
             isModifier(code) -> modUp(code)
@@ -562,10 +733,10 @@ class SuperKeyService : AccessibilityService() {
         }
     }
 
-    /** Whether holding [meta] changes the character [code] types (Alt on W: w → 1). */
-    private fun changes(kcm: KeyCharacterMap, code: Int, meta: Int): Boolean {
-        val ch = kcm.get(code, meta)
-        return ch != 0 && ch != kcm.get(code, 0)
+    /** Types [text] into the app (the layout gave a key text a US keyboard can't type). */
+    private fun commit(text: String) {
+        val delivered = EmojiKeyboardService.instance?.commitText(text) == true
+        trace("  typed \"$text\"" + if (delivered) "" else " (no app to send to)")
     }
 
     /** The US-keyboard key for [ch], and whether it needs Shift ('!' is Shift+1). */
@@ -578,25 +749,31 @@ class SuperKeyService : AccessibilityService() {
         return key.keyCode to key.isShiftPressed
     }
 
+    /** The same for [text], if it's one character. */
+    private fun usKeyFor(text: String): Pair<Int, Boolean>? = if (text.length == 1) usKeyFor(text[0]) else null
+
     private fun isModifier(code: Int) = code in META_BITS
 
     private fun isAlt(code: Int) = code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT
 
-    private fun loadSymReplaces(): Map<Int, Int> {
-        val keyLine = Regex("""^\s*key\s+(\w+)\s*\{""")
-        val symLine = Regex("""^\s*sym\s*:\s*replace\s+(\w+)""")
-        val out = HashMap<Int, Int>()
-        var key = KeyEvent.KEYCODE_UNKNOWN
-        resources.openRawResource(R.raw.titan2_custom).bufferedReader().useLines { lines ->
-            for (line in lines) {
-                keyLine.find(line)?.let { key = KeyEvent.keyCodeFromString("KEYCODE_" + it.groupValues[1]) }
-                symLine.find(line)?.let {
-                    val to = KeyEvent.keyCodeFromString("KEYCODE_" + it.groupValues[1])
-                    if (key != KeyEvent.KEYCODE_UNKNOWN && to != KeyEvent.KEYCODE_UNKNOWN) out[key] = to
-                }
-            }
-        }
-        return out
+    private fun symHeld(event: KeyEvent) = event.isSymPressed || KeyEvent.KEYCODE_SYM in heldMods
+
+    private fun altHeld(event: KeyEvent) = event.isAltPressed || heldMods.any(::isAlt)
+
+    /** The modifier bits holding [layer]'s key adds. */
+    private fun layerBits(layer: Layer) = when (layer) {
+        Layer.BASE -> 0
+        Layer.SHIFT -> SHIFT_BITS
+        Layer.ALT -> ALT_BITS
+        Layer.SYM -> SYM_BITS
+    }
+
+    /** All the modifier bits of [layer]'s key, left or right. */
+    private fun layerMask(layer: Layer) = when (layer) {
+        Layer.BASE -> 0
+        Layer.SHIFT -> KeyEvent.META_SHIFT_MASK
+        Layer.ALT -> KeyEvent.META_ALT_MASK
+        Layer.SYM -> KeyEvent.META_SYM_ON
     }
 
     // ---- badge ----

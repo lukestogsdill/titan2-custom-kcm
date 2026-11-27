@@ -14,7 +14,8 @@ class EmojiKeyboardService : InputMethodService() {
     companion object {
         /**
          * Sym+B sends this keycode (see `key B` in titan2-custom.kcm). [SuperKeyService]
-         * normally catches it first; handling it here too keeps Sym+B working without it.
+         * normally catches it first, and opens the panel from whatever key your layout puts it
+         * on; handling it here too keeps Sym+B working without the service.
          */
         const val TOGGLE_KEY = KeyEvent.KEYCODE_PICTSYMBOLS
 
@@ -93,12 +94,25 @@ class EmojiKeyboardService : InputMethodService() {
         return true
     }
 
+    /**
+     * Types [text] into the focused app, for keys whose layout types something a key press
+     * can't (é, emoji, several characters). Apps without a text field get it as key events.
+     */
+    fun commitText(text: String): Boolean {
+        val ic = currentInputConnection ?: return false
+        ic.commitText(text, 1)
+        return true
+    }
+
     /** True while the emoji panel is on screen. */
     val panelShowing: Boolean
         get() = panelOpen && isInputViewShown
 
     /** Gives the open panel a key that [SuperKeyService] changed (e.g. Sym lock + H = ←). */
     fun panelKey(event: KeyEvent): Boolean = panelShowing && panel?.onKey(event) == true
+
+    /** Gives the open panel text a changed key types (é): it goes into the search. */
+    fun panelText(text: String): Boolean = panelShowing && panel?.onText(text) == true
 
     fun togglePanel() {
         if (panelOpen) closePanel() else openPanel()

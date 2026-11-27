@@ -32,6 +32,7 @@ object Ui {
     const val RED = 0xFFFF5370.toInt()
     const val BLUE = 0xFF4F9DFF.toInt()
     const val YELLOW = 0xFFFFC947.toInt()
+    const val ORANGE = 0xFFFF9F43.toInt()
 
     val BOLD: Typeface = Typeface.create("sans-serif", Typeface.BOLD)
     val MEDIUM: Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)

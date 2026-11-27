@@ -19,6 +19,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Edits the keyboard layout: what every key types on every layer. -->
+        <activity
+            android:name=".LayoutActivity"
+            android:exported="false"
+            android:label="Keyboard layout" />
+
         <!-- Edits the controller layer's keys (Sym+C). -->
         <activity
             android:name=".ControllerActivity"
@@ -39,7 +45,7 @@
                 android:resource="@xml/method" />
         </service>
 
-        <!-- Shift/Alt/Sym locks, hold Home = Super, Sym+C controller, the lock badge. -->
+        <!-- Your layout, Shift/Alt/Sym locks, hold Home = Super, Sym+C controller, the lock badge. -->
         <service
             android:name=".SuperKeyService"
             android:exported="true"

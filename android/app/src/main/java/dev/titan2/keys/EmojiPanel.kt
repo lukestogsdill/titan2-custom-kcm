@@ -120,13 +120,24 @@ class EmojiPanel(
                 return true
             }
         }
-        val ch = event.unicodeChar
-        return when {
-            ch == 0x1b -> escape() // Sym+Q types ESC in titan2-custom.kcm
-            ch == ' '.code && query.isNotEmpty() -> { setQuery("$query "); true }
-            ch > 0 && Character.isLetterOrDigit(ch) -> { setQuery(query + ch.toChar().lowercaseChar()); true }
-            else -> false
+        return onChar(event.unicodeChar)
+    }
+
+    /** Text a key typed (one your layout gave it, like é): searched for like typed letters. */
+    fun onText(text: String): Boolean {
+        var used = false
+        text.codePoints().forEach { if (onChar(it)) used = true }
+        return used
+    }
+
+    private fun onChar(ch: Int): Boolean = when {
+        ch == 0x1b -> escape() // Sym+Q types ESC in titan2-custom.kcm
+        ch == ' '.code && query.isNotEmpty() -> { setQuery("$query "); true }
+        ch > 0 && Character.isLetterOrDigit(ch) -> {
+            setQuery(query + String(Character.toChars(Character.toLowerCase(ch))))
+            true
         }
+        else -> false
     }
 
     private fun escape(): Boolean {

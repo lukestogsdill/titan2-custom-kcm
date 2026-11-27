@@ -2,8 +2,8 @@
 """Draws the README pictures: docs/controller.svg and docs/layout.svg.
 
 controller.svg is the app's controller screen (GamepadView.kt, same 1000 x 640 geometry)
-with the default keys from ControllerBindings.kt. layout.svg is titan2-custom.kcm's three
-layers on one keyboard. Re-run after changing either:  python3 android/tools/readme_art.py
+with the default keys from ControllerBindings.kt. layout.svg is the built-in layout, read
+from titan2-custom.kcm, drawn like the app's keyboard (KeyboardView.kt). Re-run after changing either:  python3 android/tools/readme_art.py
 """
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -105,38 +105,104 @@ def controller():
 
 # ---- keyboard layout ----
 
-# (base, alt, sym) per key, from titan2-custom.kcm. Sym "PAD" is Sym+C (the controller).
-ROWS = [
-    [("Q", "0", "ESC"), ("W", "1", "~"), ("E", "2", "$"), ("R", "3", "&"), ("T", "(", "{"),
-     ("Y", ")", "}"), ("U", "-", "["), ("I", "_", "]"), ("O", "/", "\\"), ("P", ":", ";")],
-    [("A", "@", "TAB"), ("S", "4", "%"), ("D", "5", "^"), ("F", "6", "<"), ("G", "*", ">"),
-     ("H", "#", "←"), ("J", "+", "↓"), ("K", '"', "↑"), ("L", "'", "→"), ("⏎", "", "INS")],
-    [("Z", "!", "="), ("X", "7", ""), ("C", "8", "PAD"), ("V", "9", ""), ("Space", "", "SEARCH"),
-     ("B", ".", "EMOJI"), ("N", ",", "HOME"), ("M", "?", "END")],
-]
+KCM = Path(__file__).resolve().parents[2] / "titan2-custom.kcm"
+
+# The Titan 2's typing keys as they sit on the phone (KeyLayout.ROWS), under the
+# Shift / Sym / Back / Recent / Fn / Alt row.
+ROWS = [list("QWERTYUIOP"), list("ASDFGHJKL") + ["DEL"], list("ZXCV") + ["SPACE"] + list("BNM") + ["ENTER"]]
+MODS = [("⇧", BLUE), ("sym", GREEN), ("◁", MUTED), ("□", MUTED), ("fn", MUTED), ("alt", ORANGE)]
+
+# What the app prints for keys a layer presses (KeyLayout.capLabel).
+KEY_LABELS = {"DPAD_LEFT": "←", "DPAD_RIGHT": "→", "DPAD_UP": "↑", "DPAD_DOWN": "↓", "TAB": "Tab",
+              "ESCAPE": "Esc", "MOVE_HOME": "Home", "MOVE_END": "End", "INSERT": "Ins", "SEARCH": "Search",
+              "PICTSYMBOLS": "Emoji", "PAGE_UP": "PgUp", "PAGE_DOWN": "PgDn", "FORWARD_DEL": "Del", "DEL": "⌫"}
+CHAR_LABELS = {"\x1b": "Esc", "\n": "⏎", "\t": "Tab", " ": "␣"}
+
+
+def kcm_char(lit):
+    body = lit[1:-1]
+    if body.startswith("\\u"):
+        return chr(int(body[2:6], 16))
+    return {"\\n": "\n", "\\t": "\t", "\\\\": "\\", "\\'": "'", '\\"': '"'}.get(body, body)
+
+
+def read_kcm():
+    """{key: {layer: label}} for base, shift, alt and sym, like KeyLayout.parseKcm."""
+    keys, key = {}, None
+    for raw in KCM.read_text().splitlines():
+        line, quoted, i = raw, False, 0
+        while i < len(line):  # strip a # comment, but not a '#' character
+            c = line[i]
+            if quoted and c == "\\":
+                i += 1
+            elif c == "'":
+                quoted = not quoted
+            elif c == "#" and not quoted:
+                line = line[:i]
+                break
+            i += 1
+        line = line.strip()
+        if line.startswith("key ") and line.endswith("{"):
+            key = keys.setdefault(line.split()[1], {})
+        elif line == "}":
+            key = None
+        elif key is not None and ":" in line:
+            props, value = line.split(":", 1)
+            value = value.strip()
+            if value.startswith("'"):
+                ch = kcm_char(value[:value.index("'", 2 if value[1] != "\\" else 3) + 1])
+                label = CHAR_LABELS.get(ch, ch)
+            elif value.startswith("replace"):
+                name = value.split()[1]
+                label = KEY_LABELS.get(name, name)
+            else:
+                continue
+            for prop in props.split(","):
+                if prop.strip() in ("base", "shift", "alt", "sym"):
+                    key[prop.strip()] = label
+    return keys
 
 
 def layout():
-    key, gap, pad = 86, 10, 28
-    width = pad * 2 + 10 * key + 9 * gap
+    kcm = read_kcm()
+    kcm.setdefault("C", {}).setdefault("sym", "Pad")  # Sym+C, the app's controller toggle
+    kcm.setdefault("DEL", {}).setdefault("base", "⌫")
+    pad, gap, key_h, mod_h = 28, 10, 96, 52
+    inner = 1000
+    width = inner + 2 * pad
+    unit = (inner - 9 * gap) / 10
     out = []
-    y = pad + 8
+    mod_w = (inner - 5 * gap) / 6
+    for i, (label, color) in enumerate(MODS):
+        x = pad + i * (mod_w + gap)
+        out.append(f'<rect x="{x:.1f}" y="{pad}" width="{mod_w:.1f}" height="{mod_h}" rx="14" fill="#161920" stroke="#262B37" stroke-width="2"/>')
+        out.append(text(label, x + mod_w / 2, pad + mod_h / 2, 24, color, max_width=mod_w - 20))
+    y = pad + mod_h + 18
     for row in ROWS:
-        units = sum(2 if base == "Space" else 1 for base, _, _ in row)
-        x = pad + (10 - units) * (key + gap) / 2
-        for base, alt, sym in row:
-            w = key * 2 + gap if base == "Space" else key
-            out.append(f'<rect x="{x:.1f}" y="{y}" width="{w}" height="{key}" rx="14" fill="{RAISED}" stroke="{STROKE}" stroke-width="2"/>')
-            out.append(text(base, x + w / 2, y + key * 0.62, 30 if len(base) == 1 else 20, TEXT, max_width=w - 16))
-            if alt:
-                out.append(text(alt, x + 14, y + 18, 17, ORANGE, anchor="start"))
-            if sym:
-                color = PINK if sym == "PAD" else GREEN
-                size = 17 if len(sym) == 1 else 11
-                out.append(text(sym, x + w - 12, y + 18, size, color, anchor="end"))
+        x = pad
+        for name in row:
+            w = unit * 2 + gap if name == "SPACE" else unit
+            layers = kcm.get(name, {})
+            out.append(f'<rect x="{x:.1f}" y="{y + 5}" width="{w:.1f}" height="{key_h}" rx="16" fill="#07080B"/>')
+            out.append(f'<rect x="{x:.1f}" y="{y}" width="{w:.1f}" height="{key_h}" rx="16" fill="#252A37" stroke="#3A4152" stroke-width="2"/>')
+            base, shift = layers.get("base", ""), layers.get("shift")
+            letter = len(base) == 1 and shift == base.upper() and shift != base
+            if name == "SPACE":
+                out.append(f'<rect x="{x + w / 2 - 38:.1f}" y="{y + key_h * 0.62 - 3:.1f}" width="76" height="6" rx="3" fill="{TEXT}"/>')
+            else:
+                label = shift if letter else base
+                out.append(text(label, x + w / 2, y + key_h * 0.6, 38 if len(label) == 1 else 26, TEXT, max_width=w - 18))
+            if shift and not letter:
+                out.append(text(shift, x + 11, y + key_h - 17, 17, BLUE, max_width=w / 2 - 8, anchor="start"))
+            corner = (w - 2 * 11 - 8) / 2  # each top corner gets half the key, with a gap between
+            if layers.get("alt", base) != base:  # Alt+Space is just a space: nothing to show
+                out.append(text(layers["alt"], x + 11, y + 20, 19, ORANGE, max_width=corner, anchor="start"))
+            if layers.get("sym", base) != base:
+                color = PINK if layers["sym"] == "Pad" else GREEN
+                out.append(text(layers["sym"], x + w - 11, y + 20, 19, color, max_width=corner, anchor="end"))
             x += w + gap
-        y += key + gap
-    y += 18
+        y += key_h + gap
+    y += 22
     legend = [("Alt", ORANGE), ("Sym", GREEN), ("Sym+C controller", PINK)]
     lx = pad
     for name, color in legend:

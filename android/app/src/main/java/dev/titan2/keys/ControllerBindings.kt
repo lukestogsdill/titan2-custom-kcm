@@ -67,11 +67,7 @@ object ControllerBindings {
     )
 
     /** The Titan 2's keys in keyboard order, for listing a button's keys the way they're laid out. */
-    private val ORDER = "QWERTYUIOPASDFGHJKL".map { KeyEvent.keyCodeFromString("KEYCODE_$it") } +
-        KeyEvent.KEYCODE_ENTER +
-        "ZXCV".map { KeyEvent.keyCodeFromString("KEYCODE_$it") } +
-        KeyEvent.KEYCODE_SPACE +
-        "BNM".map { KeyEvent.keyCodeFromString("KEYCODE_$it") }
+    private val ORDER = KeyLayout.KEYS
 
     private const val PREFS = "controller"
     private const val KEY_BINDINGS = "bindings"

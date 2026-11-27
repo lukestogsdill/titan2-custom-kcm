@@ -5,5 +5,5 @@
     <string name="subtype_en_us">English (US)</string>
     <string name="layout_name">Titan 2 Custom</string>
     <string name="super_service_name">Titan2 Key locks &amp; Super</string>
-    <string name="super_service_description">Double-tap Shift, Alt or Sym to lock it, with a badge at the top of the screen. Hold Home to turn a Super (Windows) key on and off, for example for Moonlight; a short press still goes home. Sym+C turns a controller layer on and off, where the keys you bind act as gamepad buttons. Keys a lock, Super or the controller changes are sent to the app through the Titan2 Emoji keyboard; all other keys go through untouched. Nothing is logged or stored.</string>
+    <string name="super_service_description">Types your keyboard layout: the keys you changed in Titan2 Keys type what you set them to. Double-tap Shift, Alt or Sym to lock it, with a badge at the top of the screen. Hold Home to turn a Super (Windows) key on and off, for example for Moonlight; a short press still goes home. Sym+C turns a controller layer on and off, where the keys you bind act as gamepad buttons. Keys your layout, a lock, Super or the controller changes are sent to the app through the Titan2 Emoji keyboard; all other keys go through untouched. No keystrokes are logged or stored.</string>
 </resources>
