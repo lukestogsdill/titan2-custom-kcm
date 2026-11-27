@@ -24,7 +24,7 @@ The Titan 2 has a great physical keyboard, but Android keeps treating it like an
 | 😀 **Emoji panel, Sym + B** | The onscreen keyboard stays out of the way (like "No Keyboard") until you want emoji. Type to search: `fire`, `thumbs up`. |
 | 🎮 **Controller layer, Sym + C** | The keyboard becomes a gamepad for Moonlight game streaming. Rebind every button on a drawn controller that lights up as you press. |
 | 🔒 **Key locks** | Double-tap Shift, Alt or Sym to lock it. A badge in the status bar shows what's on. |
-| ❖ **Super key** | Hold Home to turn on Super (the Windows key) for Hyprland and other desktop shortcuts over Moonlight. |
+| ❖ **Super key, Sym + Shift** | Turns on Super (the Windows key) for Hyprland and other desktop shortcuts over Moonlight. |
 
 No root, no ExKeyMo, no extra apps. One APK.
 
@@ -58,7 +58,7 @@ It works as soon as you pick it. Changed keys get a pink dot. **Same as Base** c
 - Locks follow your layout: Alt lock types your Alt layer, Sym lock your Sym layer. Caps lock capitalizes keys whose Shift is the capital of Base.
 - You can move the emoji panel and the controller toggle too. Put "Emoji panel" or "Controller" on any key.
 - Characters a US keyboard has go out as real key presses, so they work in Moonlight. Other characters (é, €, emoji) and longer text are typed as text: text fields take them, but Moonlight and games may not.
-- Shift, Sym, Alt, Fn, Back and Recent can't be changed here. Neither can holding Home for Super.
+- Shift, Sym, Alt, Fn, Back and Recent can't be changed here. Neither can Sym + Shift for Super.
 - Changes need Titan2 Emoji as the keyboard and the key locks & Super service on (setup steps 2–4). Without them the keyboard types the built-in layout.
 - **Export .kcm** saves your layout as a file and **Import .kcm** loads one, for another phone or a backup. To make it the built-in layout, save it over `titan2-custom.kcm` and rebuild. Text and the controller toggle can't go in a .kcm: they're written as comments, and importing keeps your current ones.
 
@@ -83,7 +83,7 @@ In Moonlight, typing goes to the stream, so use touch there.
 
 - Hold **Sym** for the normal Sym layer (Sym+H/J/K/L are still arrows, Sym+C turns the controller off).
 - Hold **Alt** to type digits, unless you've bound Alt as a button.
-- Home still toggles Super. Back and the other system keys can't be bound.
+- Sym + Shift still toggles Super, unless you've bound Shift as a button. Back and the other system keys can't be bound.
 - No analog sticks (Android doesn't let an app fake them), so games need to work with the D-pad.
 - Moonlight's own controller shortcuts apply: holding Start toggles its mouse mode, Start+Select+LB+RB ends the stream.
 
@@ -102,9 +102,9 @@ It's made for Moonlight. Android games may or may not accept the buttons.
 - A lock only changes keys where its layer has something, so with Alt lock Backspace, Enter and Space stay normal.
 - Holding the other layer's key wins for that press: Alt+key during Sym lock gives the Alt character.
 
-## ❖ Super key (hold Home)
+## ❖ Super key (Sym + Shift)
 
-**Hold Home** for half a second to turn Super on (you'll feel a tick and see **SUPER**). Every key is then sent as Super + key until you hold Home again. A short press of Home still goes home. Holding a key that sends code 408 toggles Super too (a short press of it does whatever it normally does).
+Press **Sym and Shift together**, with no other key, to turn Super on (you'll feel a tick and see **SUPER**). Every key is then sent as Super + key until you press Sym + Shift again. With another key it's Shift + Sym + key as usual, so Shift + Sym + H still selects to the left.
 
 | With Super on, press      | Sent                   | Omarchy           |
 | ------------------------- | ---------------------- | ----------------- |

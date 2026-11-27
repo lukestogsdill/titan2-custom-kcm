@@ -59,11 +59,10 @@ object ControllerBindings {
         KeyEvent.KEYCODE_M to KeyEvent.KEYCODE_BUTTON_THUMBR,
     )
 
-    /** Keys that keep their job in the controller layer: Sym (Sym+C turns it off), Home (Super), system keys. */
+    /** Keys that keep their job in the controller layer: Sym (Sym+C turns it off) and the system keys. */
     private val RESERVED = setOf(
         KeyEvent.KEYCODE_UNKNOWN, KeyEvent.KEYCODE_SYM, KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_BACK,
         KeyEvent.KEYCODE_APP_SWITCH, KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_MENU,
-        SuperKeyService.SUPER_KEY_CODE,
     )
 
     /** The Titan 2's keys in keyboard order, for listing a button's keys the way they're laid out. */

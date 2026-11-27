@@ -172,7 +172,7 @@ class LayoutActivity : Activity() {
         for (tip in listOf(
             "Locks follow your layout: Alt lock types your Alt layer, Sym lock your Sym layer, and caps lock capitalizes keys whose Shift is the capital of Base.",
             "Characters a US keyboard doesn't have (é, €, emoji) and text longer than one character are typed as text. Text fields take it; Moonlight and games may not.",
-            "Shift, Sym, Alt, Fn, Back and Recent stay as they are. Hold Home for Super, double-tap Shift, Alt or Sym to lock, as always.",
+            "Shift, Sym, Alt, Fn, Back and Recent stay as they are. Sym+Shift turns Super on and off, and double-tapping Shift, Alt or Sym locks it, as always.",
             "Export saves your layout as a .kcm file. Put it over titan2-custom.kcm in the repo and rebuild to make it the built-in layout, or import it on another phone.",
         )) {
             val row = LinearLayout(context)

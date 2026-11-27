@@ -6,8 +6,6 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -28,8 +26,8 @@ import kotlin.math.roundToInt
  *
  *  - Your keyboard layout ([KeyLayout]): keys you changed type what you set them to.
  *  - Double-tap Shift, Alt or Sym to lock it (Shift locks caps). Tap it once to unlock.
- *  - Holding Home (or the key with code 408) turns Super (Meta / the Windows key) on and
- *    off, e.g. for Hyprland through Moonlight. A short press of Home still goes home.
+ *  - Sym+Shift, pressed together on their own, turns Super (Meta / the Windows key) on and
+ *    off, e.g. for Hyprland through Moonlight.
  *  - Sym+B opens the emoji panel, in any app (wherever the layout puts it).
  *  - Sym+C turns the controller layer on and off: the keys bound in [ControllerBindings]
  *    become gamepad buttons (for Moonlight), everything else types as usual.
@@ -55,12 +53,6 @@ class SuperKeyService : AccessibilityService() {
 
         /** ...and a double tap is a second tap starting within this time of the first. */
         const val DOUBLE_TAP_GAP_MS = 300L
-
-        /** Holding the Super key this long turns Super on or off. */
-        const val HOLD_MS = 500L
-
-        /** Besides Home, the key whose scan code (or keycode) is this one toggles Super too. */
-        const val SUPER_KEY_CODE = 408
 
         private const val SHIFT_BITS = KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
         private const val SYM_BITS = KeyEvent.META_SYM_ON
@@ -182,8 +174,8 @@ class SuperKeyService : AccessibilityService() {
     private val owned = HashMap<Int, Sent>()
 
     /**
-     * Sym and Alt keys held down right now. Events usually say so in their meta state, but not
-     * a key the .kcm swapped: Sym+H arrives as ← without Sym.
+     * Sym, Alt and Shift keys held down right now. Events usually say so in their meta state,
+     * but not a key the .kcm swapped: Sym+H arrives as ← without Sym.
      */
     private val heldMods = HashSet<Int>()
 
@@ -202,13 +194,12 @@ class SuperKeyService : AccessibilityService() {
     private var lastTap: Lock? = null
     private var lastTapUpAt = 0L
 
-    // Super key hold tracking.
-    private val handler = Handler(Looper.getMainLooper())
-    private var holdFired = false
-    private val holdTimeout = Runnable {
-        holdFired = true
-        toggleSuper()
-    }
+    // Sym+Shift tracking (see trackSuperChord).
+    /** Since the first of Sym and Shift went down, nothing else has been pressed. */
+    private var onlySymShift = false
+
+    /** Sym and Shift are both down, on their own: letting go of one toggles Super. */
+    private var superChord = false
 
     private val usKeyboard by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
 
@@ -224,7 +215,6 @@ class SuperKeyService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onDestroy() {
-        handler.removeCallbacks(holdTimeout)
         releaseAll()
         heldMods.clear()
         padOn = false
@@ -236,14 +226,14 @@ class SuperKeyService : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val down = event.action == KeyEvent.ACTION_DOWN
-        if (code == KeyEvent.KEYCODE_SYM || isAlt(code)) {
+        if (code == KeyEvent.KEYCODE_SYM || isAlt(code) || isShift(code)) {
             if (down) heldMods += code else heldMods -= code
         }
         if (event.repeatCount == 0 && traceListener != null) {
             val name = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
             trace("service saw $name " + (if (down) "down" else "up") + " scan=${event.scanCode}")
         }
-        if (isSuperKey(event)) return onSuperKey(event, down)
+        trackSuperChord(event, code, down)
         val fresh = down && event.repeatCount == 0 && code !in owned
         val typed = if (fresh) typed(event) else null
         if (fresh && (layoutCapture(event, typed) || capture(event) || controllerToggle(event, typed) || padPress(event))) {
@@ -334,28 +324,39 @@ class SuperKeyService : AccessibilityService() {
         trace("${lock.label} " + if (on) "ON" else "off")
     }
 
-    private fun isSuperKey(event: KeyEvent) = event.keyCode == KeyEvent.KEYCODE_HOME ||
-        event.scanCode == SUPER_KEY_CODE || event.keyCode == SUPER_KEY_CODE
-
     /**
-     * Holding the Super key toggles Super. Home is taken over so holding it doesn't also
-     * go home or open the assistant; a short press is replayed as Home. Any other Super
-     * key goes through as usual, so whatever it normally does still works.
+     * Sym and Shift pressed together with no other key toggle Super when you let go. With
+     * another key it's Shift+Sym+key as usual (Shift+Sym+H selects to the left), not the toggle.
+     * The keys themselves still go through, so a Shift press reaches the app either way.
      */
-    private fun onSuperKey(event: KeyEvent, down: Boolean): Boolean {
-        val home = event.keyCode == KeyEvent.KEYCODE_HOME
-        if (down) {
-            if (event.repeatCount == 0) {
-                holdFired = false
-                handler.removeCallbacks(holdTimeout)
-                handler.postDelayed(holdTimeout, HOLD_MS)
+    private fun trackSuperChord(event: KeyEvent, code: Int, down: Boolean) {
+        if (code != KeyEvent.KEYCODE_SYM && !isShift(code)) {
+            if (down) {
+                onlySymShift = false
+                superChord = false
             }
-            return home
+            return
         }
-        handler.removeCallbacks(holdTimeout)
-        if (home && !holdFired) performGlobalAction(GLOBAL_ACTION_HOME)
-        return home
+        if (down) {
+            if (event.repeatCount > 0) return
+            if (heldMods.count { it == KeyEvent.KEYCODE_SYM || isShift(it) } == 1) onlySymShift = true
+            if (onlySymShift && KeyEvent.KEYCODE_SYM in heldMods && heldMods.any(::isShift) &&
+                heldMods.none(::isAlt) && !event.isCtrlPressed && !event.isMetaPressed &&
+                !shiftIsPadButton()
+            ) {
+                superChord = true
+            }
+            return
+        }
+        if (superChord) {
+            superChord = false
+            onlySymShift = false
+            toggleSuper()
+        }
     }
+
+    /** With the controller on, a Shift bound as a gamepad button is a button, not half of Sym+Shift. */
+    private fun shiftIsPadButton() = Lock.PAD in locks && ControllerBindings.get(this).keys.any(::isShift)
 
     private fun toggleSuper() {
         val turnOn = Lock.SUPER !in locks
@@ -755,6 +756,8 @@ class SuperKeyService : AccessibilityService() {
     private fun isModifier(code: Int) = code in META_BITS
 
     private fun isAlt(code: Int) = code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT
+
+    private fun isShift(code: Int) = code == KeyEvent.KEYCODE_SHIFT_LEFT || code == KeyEvent.KEYCODE_SHIFT_RIGHT
 
     private fun symHeld(event: KeyEvent) = event.isSymPressed || KeyEvent.KEYCODE_SYM in heldMods
 

@@ -155,7 +155,7 @@ class SetupActivity : Activity() {
         addView(label("Shortcuts", 18f, Ui.TEXT, Ui.BOLD), below(10))
         addView(shortcut(listOf("Sym", "+", "B"), "Emoji panel"))
         addView(shortcut(listOf("Sym", "+", "C"), "Controller on / off"))
-        addView(shortcut(listOf("hold", "Home"), "Super (Windows) key on / off"))
+        addView(shortcut(listOf("Sym", "+", "Shift"), "Super (Windows) key on / off"))
         addView(shortcut(listOf("2×", "Shift"), "Caps lock"))
         addView(shortcut(listOf("2×", "Alt"), "Alt lock (numbers & symbols)"))
         addView(shortcut(listOf("2×", "Sym"), "Sym lock (arrows, Tab, Esc…)"))
@@ -184,7 +184,7 @@ class SetupActivity : Activity() {
     private fun testCard() = card().apply {
         addView(label("Test keys", 18f, Ui.TEXT, Ui.BOLD), below(10))
         addView(EditText(context).apply {
-            hint = "Type here: try Sym+B, Sym+C, hold Home…"
+            hint = "Type here: try Sym+B, Sym+C, Sym+Shift…"
             textSize = 15f
             setTextColor(Ui.TEXT)
             setHintTextColor(Ui.MUTED)

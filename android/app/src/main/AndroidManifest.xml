@@ -45,7 +45,7 @@
                 android:resource="@xml/method" />
         </service>
 
-        <!-- Your layout, Shift/Alt/Sym locks, hold Home = Super, Sym+C controller, the lock badge. -->
+        <!-- Your layout, Shift/Alt/Sym locks, Sym+Shift = Super, Sym+C controller, the lock badge. -->
         <service
             android:name=".SuperKeyService"
             android:exported="true"
